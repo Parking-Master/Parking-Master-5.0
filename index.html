@@ -19,11 +19,13 @@
     <script src="three.js"></script>
     <script src="GLTFLoader.js"></script>
     <script src="cannon.js"></script>
+    <script src="PointerLockControls.js"></script>
     <script>
       const antialias = 0.5;
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+      const clock = new THREE.Clock();
       directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2);
       ambientLight = new THREE.AmbientLight(0xefe1a7, 0.5);
       renderer.shadowMap.autoUpdate = false;
@@ -60,7 +62,8 @@
       onWindowResize();
 
       function animate() {
-        world.step(1 / 60);
+        const deltaTime = Math.min(0.04, clock.getDelta());
+        world.step(deltaTime);
         for (let i = 0; i < vehicleBodies.length; i++) {
           const body = vehicleBodies[i];
           const mesh = vehicleMeshes[i];
@@ -80,11 +83,19 @@
             car.shadow.scale.set(car.shadow.shadowSize[0] + offset, car.shadow.shadowSize[1] + offset, 0);
           }
         }
+        for (let i = 0; i < propCars.length; i++) {
+          if (propCars[i].position.x < -200) {
+            propCars[i].speed = (Math.random() / 2) + 0.5;
+            propCars[i].position.x = 200;
+          }
+          propCars[i].position.x += -propCars[i].speed;
+        }
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
       }
 
       let car = null;
+      let propCars = [];
       let vehicleBodies = [];
       let vehicleMeshes = [];
       const world = new CANNON.World();
@@ -126,7 +137,7 @@
 
       const vehicleWeight = 1416;
       const wheelWeight = 10;
-      new THREE.GLTFLoader().load("/scene1.glb", function(model) {
+      new THREE.GLTFLoader().load("/map.glb", function(model) {
         map = model.scene;
         map.traverse(x => {
           if (x.material) {
@@ -164,10 +175,11 @@
           car.traverse(x => {
             if (x.material) x.material.vertexColors = false;
           });
-          new THREE.TextureLoader().load("/0.png", function(texture) {
+          new THREE.TextureLoader().load("/1.png", function(texture) {
             let pmremGenerator = new THREE.PMREMGenerator(renderer);
             envMap = pmremGenerator.fromEquirectangular(texture).texture;
             car.getObjectByName("Exterior_Shell").material.envMap = envMap;
+            car.getObjectByName("Windows").material.envMap = envMap;
           });
           scene.add(car);
 
@@ -193,9 +205,9 @@
           const options = {
             radius: 0.33,
             directionLocal: new CANNON.Vec3(0, -1, 0),
-            suspensionStiffness: 35,
+            suspensionStiffness: 30,
             suspensionRestLength: 0.18,
-            frictionSlip: 5,
+            frictionSlip: 2,
             dampingRelaxation: 6,
             dampingCompression: 4.5,
             maxSuspensionForce: 120000,
@@ -229,6 +241,8 @@
             const wheelMesh = car.getObjectByName("Wheels").children[i];
             vehicleMeshes.push(wheelMesh);
           }
+          chassisBody.position.y = 1;
+          animate();
         });
         map.traverse(x=>(x.castShadow=true,x.receiveShadow=true));
         map.getObjectByName("Plane009").material.map.anisotropy = 4;
@@ -238,8 +252,24 @@
         map.getObjectByName("vegetation_long_grass_04_0001").material.map.needsUpdate = true;
         map.getObjectByName("Mesh_2_6").material.map.needsUpdate = true;
         renderer.shadowMap.needsUpdate = true;
-        animate();
       });
+
+      new THREE.GLTFLoader().load("/propcars.glb", function(model) {
+        model.scene.getObjectByName("wrapper").children.forEach((car, i) => {
+          car.speed = 0.5;
+          car.scale.set(0.8, 0.8, 0.8);
+          car.position.set(200 - (i * 30) + (Math.random() * 10), 1, 18);
+          car.rotation.set(-Math.PI / 2 - 0.05, 0, -Math.PI / 2);
+          scene.add(car);
+          propCars.push(car);
+        });
+      });
+
+      const PointerControls = new PointerLockControls(camera, renderer.domElement);
+      PointerControls.maxPolarAngle = Math.PI - 0.15;
+      PointerControls.minPolarAngle = 0.15;
+      PointerControls.pointerSpeed = 0.6;
+      PointerControls.isLocked = false;
     </script>
   </body>
 </html>
