@@ -63,6 +63,7 @@
 
       function animate() {
         const deltaTime = Math.min(0.04, clock.getDelta());
+        const time = Date.now();
         world.step(deltaTime);
         for (let i = 0; i < vehicleBodies.length; i++) {
           const body = vehicleBodies[i];
@@ -83,12 +84,30 @@
             car.shadow.scale.set(car.shadow.shadowSize[0] + offset, car.shadow.shadowSize[1] + offset, 0);
           }
         }
-        for (let i = 0; i < propCars.length; i++) {
-          if (propCars[i].position.x < -200) {
-            propCars[i].speed = (Math.random() / 2) + 0.5;
-            propCars[i].position.x = 200;
+        const spawnFactor = Math.floor(Math.random() * 100);
+        if (spawnFactor <= 10) {
+          const newPropCar = propCars[Math.floor(Math.random() * propCars.length)];
+          if (newPropCar && spawnedPropCars.indexOf(newPropCar) == -1 && time - lastPropCarSpawn > 800) {
+            lastPropCarSpawn = time;
+            if (spawnFactor <= 5) {
+              newPropCar.rotation.set(-Math.PI / 2 - 0.05, -0.01, -Math.PI / 2);
+              newPropCar.position.set(300, 0.2, 17);
+              newPropCar.direction = 1;
+            } else {
+              newPropCar.rotation.set(-Math.PI / 2 - 0.05, 0.01, Math.PI / 2);
+              newPropCar.position.set(-300, 0.4, 24);
+              newPropCar.direction = -1;
+            }
+            spawnedPropCars.push(newPropCar);
           }
-          propCars[i].position.x += -propCars[i].speed;
+        }
+        for (let i = 0; i < spawnedPropCars.length; i++) {
+          const propCar = spawnedPropCars[i];
+          if (propCar.position.x > -301 && propCar.position.x < 301) {
+            propCar.position.x += -25 * propCar.direction * deltaTime;
+          } else {
+            spawnedPropCars.splice(spawnedPropCars.indexOf(propCar), 1);
+          }
         }
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
@@ -96,6 +115,8 @@
 
       let car = null;
       let propCars = [];
+      let lastPropCarSpawn = null;
+      let spawnedPropCars = [];
       let vehicleBodies = [];
       let vehicleMeshes = [];
       const world = new CANNON.World();
@@ -104,7 +125,7 @@
       const groundMaterial = new CANNON.Material("groundMaterial");
       const wheelMaterial = new CANNON.Material("wheelMaterial");
       const carMaterial = new CANNON.Material("carMaterial");
-      const wheelGroundContactMaterial = new CANNON.ContactMaterial(wheelMaterial, groundMaterial, { friction: 0.3 });
+      const wheelGroundContactMaterial = new CANNON.ContactMaterial(wheelMaterial, groundMaterial, { friction: 0.3, restitution: 0, contactEquationStiffness: 1000 });
       world.addContactMaterial(wheelGroundContactMaterial);
       const carGroundContactMaterial = new CANNON.ContactMaterial(carMaterial, groundMaterial, { friction: 0.01 });
       world.addContactMaterial(carGroundContactMaterial);
@@ -255,14 +276,15 @@
       });
 
       new THREE.GLTFLoader().load("/propcars.glb", function(model) {
-        model.scene.getObjectByName("wrapper").children.forEach((car, i) => {
-          car.speed = 0.5;
-          car.scale.set(0.8, 0.8, 0.8);
-          car.position.set(200 - (i * 30) + (Math.random() * 10), 1, 18);
+        const cars = model.scene.getObjectByName("Wrapper").children;
+        for (let i = cars.length - 1; i >= 0; i--) {
+          const car = cars[i];
+          car.position.set(300, 0, 17);
           car.rotation.set(-Math.PI / 2 - 0.05, 0, -Math.PI / 2);
+          car.scale.set(0.8, 0.8, 0.8);
           scene.add(car);
           propCars.push(car);
-        });
+        }
       });
 
       const PointerControls = new PointerLockControls(camera, renderer.domElement);
