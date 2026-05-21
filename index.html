@@ -147,11 +147,9 @@
         }
 
         if (frame % 3 == 0 && speed > 0.5) {
-          map.getObjectByName("Lamps").visible = false;
           car.visible = false;
           cubeCam.update(renderer, scene);
           car.visible = true;
-          map.getObjectByName("Lamps").visible = true;
         }
 
         renderer.render(scene, camera);
@@ -176,8 +174,8 @@
       const carGroundContactMaterial = new CANNON.ContactMaterial(carMaterial, groundMaterial, { friction: 0.01 });
       world.addContactMaterial(carGroundContactMaterial);
 
-      let engineForce = 1000;
-      let maxSteerVal = 0.6;
+      let engineForce = 4000;
+      let maxSteerVal = 0.8;
 
       document.addEventListener("keydown", function(event) {
         keyStates[event.key] = true;
@@ -241,7 +239,7 @@
           chassisMesh.add(cubeCam);
           chassisMesh.add(camera);
 
-          camera.position.set(0, 1, -7);
+          camera.position.set(0, 0.9, -6);
           camera.rotation.y = Math.PI;
 
           const box = new THREE.Box3().setFromObject(chassisMesh);
