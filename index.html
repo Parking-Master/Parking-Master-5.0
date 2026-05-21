@@ -61,10 +61,46 @@
       window.addEventListener("resize", onWindowResize);
       onWindowResize();
 
+      const cubeRT = new THREE.WebGLCubeRenderTarget(100);
+      const cubeCam = new THREE.CubeCamera(0.1, 500, cubeRT);
+      let frame = 0;
       function animate() {
+        frame++;
         const deltaTime = Math.min(0.04, clock.getDelta());
         const time = Date.now();
         world.step(deltaTime);
+
+        if (keyStates["ArrowUp"]) {
+          vehicle.applyEngineForce(-engineForce, 2);
+          vehicle.applyEngineForce(-engineForce, 3);
+        } else if (keyStates["ArrowDown"]) {
+          vehicle.applyEngineForce(engineForce, 2);
+          vehicle.applyEngineForce(engineForce, 3);
+        } else {
+          vehicle.applyEngineForce(0, 2);
+          vehicle.applyEngineForce(0, 3);
+        }
+        const v = vehicle.chassisBody.velocity.clone();
+        const speed = v.length();
+        const frontOrBackArea = 2.2;
+        const driveTrainForce = 3.0;
+        const dragForce = 0.5 * 1.225 * 0.3 * frontOrBackArea * speed * speed * driveTrainForce;
+        if (speed > 0) {
+          v.normalize();
+          v.scale(-dragForce, v);
+          vehicle.chassisBody.applyForce(v, vehicle.chassisBody.position);
+        }
+        if (keyStates["ArrowLeft"]) {
+          vehicle.setSteeringValue(maxSteerVal, 2);
+          vehicle.setSteeringValue(maxSteerVal, 3);
+        } else if (keyStates["ArrowRight"]) {
+          vehicle.setSteeringValue(-maxSteerVal, 2);
+          vehicle.setSteeringValue(-maxSteerVal, 3);
+        } else {
+          vehicle.setSteeringValue(0, 2);
+          vehicle.setSteeringValue(0, 3);
+        }
+
         for (let i = 0; i < vehicleBodies.length; i++) {
           const body = vehicleBodies[i];
           const mesh = vehicleMeshes[i];
@@ -109,10 +145,20 @@
             spawnedPropCars.splice(spawnedPropCars.indexOf(propCar), 1);
           }
         }
+
+        if (frame % 3 == 0 && speed > 0.5) {
+          map.getObjectByName("Lamps").visible = false;
+          car.visible = false;
+          cubeCam.update(renderer, scene);
+          car.visible = true;
+          map.getObjectByName("Lamps").visible = true;
+        }
+
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
       }
 
+      let keyStates = {};
       let car = null;
       let propCars = [];
       let lastPropCarSpawn = null;
@@ -125,40 +171,24 @@
       const groundMaterial = new CANNON.Material("groundMaterial");
       const wheelMaterial = new CANNON.Material("wheelMaterial");
       const carMaterial = new CANNON.Material("carMaterial");
-      const wheelGroundContactMaterial = new CANNON.ContactMaterial(wheelMaterial, groundMaterial, { friction: 0.3, restitution: 0, contactEquationStiffness: 1000 });
+      const wheelGroundContactMaterial = new CANNON.ContactMaterial(wheelMaterial, groundMaterial, { friction: 0.3/*, restitution: 0, contactEquationStiffness: 1000*/ });
       world.addContactMaterial(wheelGroundContactMaterial);
       const carGroundContactMaterial = new CANNON.ContactMaterial(carMaterial, groundMaterial, { friction: 0.01 });
       world.addContactMaterial(carGroundContactMaterial);
 
-      const engineForce = 5000;
-      const maxSteerVal = 0.6;
-      function navigate(e) {
-        if (e.type != "keydown" && e.type != "keyup") return;
-        var keyup = e.type == "keyup";
-        vehicle.setBrake(0, 0);
-        vehicle.setBrake(0, 1);
-        vehicle.setBrake(0, 2);
-        vehicle.setBrake(0, 3);
-        if (e.keyCode == 38) {
-          vehicle.applyEngineForce(keyup ? 0 : -engineForce, 2);
-          vehicle.applyEngineForce(keyup ? 0 : -engineForce, 3);
-        } else if (e.keyCode == 40) {
-          vehicle.applyEngineForce(keyup ? 0 : engineForce, 2);
-          vehicle.applyEngineForce(keyup ? 0 : engineForce, 3);
-        } else if (e.keyCode == 39) {
-          vehicle.setSteeringValue(keyup ? 0 : -maxSteerVal, 2);
-          vehicle.setSteeringValue(keyup ? 0 : -maxSteerVal, 3);
-        } else if (e.keyCode == 37) {
-          vehicle.setSteeringValue(keyup ? 0 : maxSteerVal, 2);
-          vehicle.setSteeringValue(keyup ? 0 : maxSteerVal, 3);
-        }
-      }
-      window.addEventListener("keydown", navigate);
-      window.addEventListener("keyup", navigate);
+      let engineForce = 1000;
+      let maxSteerVal = 0.6;
+
+      document.addEventListener("keydown", function(event) {
+        keyStates[event.key] = true;
+      });
+      document.addEventListener("keyup", function(event) {
+        keyStates[event.key] = false;
+      });
 
       const vehicleWeight = 1416;
       const wheelWeight = 10;
-      new THREE.GLTFLoader().load("/map.glb", function(model) {
+      new THREE.GLTFLoader().load("map.glb", function(model) {
         map = model.scene;
         map.traverse(x => {
           if (x.material) {
@@ -168,7 +198,7 @@
         });
         scene.add(map);
 
-        sky = new THREE.Mesh(new THREE.SphereGeometry(1000, 25, 25), new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("/0.png"), side: THREE.BackSide }));
+        sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("0.png"), side: THREE.BackSide }));
         sky.rotation.y = -0.3;
         scene.add(sky);
 
@@ -191,17 +221,13 @@
         });
         map.remove(collisionMap);
 
-        new THREE.GLTFLoader().load("/Honda_Civic_Sport_Touring.glb", function(model) {
+        new THREE.GLTFLoader().load("Honda_Civic_Sport_Touring.glb", function(model) {
           car = model.scene;
           car.traverse(x => {
             if (x.material) x.material.vertexColors = false;
           });
-          new THREE.TextureLoader().load("/1.png", function(texture) {
-            let pmremGenerator = new THREE.PMREMGenerator(renderer);
-            envMap = pmremGenerator.fromEquirectangular(texture).texture;
-            car.getObjectByName("Exterior_Shell").material.envMap = envMap;
-            car.getObjectByName("Windows").material.envMap = envMap;
-          });
+          car.getObjectByName("Exterior_Shell").material.envMap = cubeRT.texture;
+          car.getObjectByName("Windows").material.envMap = cubeRT.texture;
           scene.add(car);
 
           car.shadow = car.getObjectByName("Shadow");
@@ -212,6 +238,7 @@
           chassisMesh.rotation.order = "YXZ";
           car.chassis = chassisMesh;
           vehicleMeshes.push(chassisMesh);
+          chassisMesh.add(cubeCam);
           chassisMesh.add(camera);
 
           camera.position.set(0, 1, -7);
@@ -275,7 +302,7 @@
         renderer.shadowMap.needsUpdate = true;
       });
 
-      new THREE.GLTFLoader().load("/propcars.glb", function(model) {
+      new THREE.GLTFLoader().load("propcars.glb", function(model) {
         const cars = model.scene.getObjectByName("Wrapper").children;
         for (let i = cars.length - 1; i >= 0; i--) {
           const car = cars[i];
