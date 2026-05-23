@@ -26,8 +26,9 @@
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
       const clock = new THREE.Clock();
-      directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2);
-      ambientLight = new THREE.AmbientLight(0xefe1a7, 0.5);
+      camera.rotation.order = "YXZ";
+      directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2.5);
+      ambientLight = new THREE.AmbientLight(0xefe1a7, 0.6);
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.VSMShadowMap;
@@ -61,8 +62,8 @@
       window.addEventListener("resize", onWindowResize);
       onWindowResize();
 
-      const cubeRT = new THREE.WebGLCubeRenderTarget(100);
-      const cubeCam = new THREE.CubeCamera(0.1, 500, cubeRT);
+      // const cubeRT = new THREE.WebGLCubeRenderTarget(100);
+      // const cubeCam = new THREE.CubeCamera(0.1, 500, cubeRT);
       let frameCount = 0;
       let lastTime = performance.now();
       let fps = 0;
@@ -74,9 +75,10 @@
         world.step(deltaTime);
 
         utils.vehicle.updatePhysics();
-        utils.vehicle.updateBrakes(deltaTime, time);
-        utils.vehicle.updateSteering();
+        utils.vehicle.updateSteering(deltaTime);
         utils.vehicle.updateThrottle();
+        utils.vehicle.updateBrakes(deltaTime, time);
+        utils.vehicle.updateView();
 
         const spawnFactor = Math.floor(Math.random() * 100);
         if (spawnFactor <= 10) {
@@ -104,11 +106,11 @@
           }
         }
 
-        if (frameCount % 3 == 0 && vehicle.speed > 1 || frameCount == 0) {
-          vehicle.model.visible = false;
-          cubeCam.update(renderer, scene);
-          vehicle.model.visible = true;
-        }
+        // if (frameCount % 3 == 0 && vehicle.speed > 1 || frameCount == 0) {
+        //   vehicle.model.visible = false;
+        //   cubeCam.update(renderer, scene);
+        //   vehicle.model.visible = true;
+        // }
 
         frameCount++;
         const diff = now - lastTime;
@@ -133,33 +135,52 @@
       const world = new CANNON.World();
       world.gravity.set(0, -9.82, 0);
 
+      let options = { carHeadingMaxIncrement: 11, carHeadingIncrement: 0 };
+
+      let chosenVehicle = "Honda_Civic_Sport_Touring";
       utils = {
-        vehicle: {
-          initialize: function() {
-            vehicle = new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 });
-            vehicle.physics = {
+        vehicles: {
+          "Honda_Civic_Sport_Touring": {
+            physics: {
               drivetrain: "fwd",
               brakes: "awb",
               engineForce: 5000,
-              maxSteerVal: 0.8,
+              heading: 0,
+              wheelTurnRatio: 12,
               frontArea: 2.2,
               rearArea: 2.7,
               weight: 1416,
-              wheelWeight: 10
-            };
-            new THREE.GLTFLoader().load("Honda_Civic_Sport_Touring.glb", function(model) {
+              wheelWeight: 10,
+              lastRotation: 0
+            },
+            views: [
+              [0.35, 0.35, -0.2, 0, Math.PI, 0],
+              [0, 1.1, -6, 0.08, Math.PI, 0],
+              [1.2, 0, -3, 0.05, Math.PI, 0],
+              [0, 0.4, 4.5, -0.1, 0, 0],
+            ]
+          }
+        },
+        vehicle: {
+          initialize: function() {
+            vehicle = new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 });
+            vehicle.physics = utils.vehicles[chosenVehicle].physics;
+            new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
               vehicle.model = model.scene;
               vehicle.model.traverse(child => {
                 if (child.material) child.material.vertexColors = false;
-                if (child.name == "Exterior_Shell" || child.name == "Windows") {
-                  child.material.envMap = cubeRT.texture;
+                if (child.name == "Exterior" || child.name == "Windows") {
+                  new THREE.TextureLoader().load("/1.png", function(texture) {
+                    let pmremGenerator = new THREE.PMREMGenerator(renderer);
+                    child.material.envMap = pmremGenerator.fromEquirectangular(texture).texture;
+                  });
                 } else if (child.name == "Shadow") {
                   child.shadowSize = [child.scale.x, child.scale.y];
                   vehicle.shadow = child;
                   scene.add(vehicle.shadow);
                 } else if (child.name == "Chassis") {
                   child.rotation.order = "YXZ";
-                  child.add(cubeCam);
+                  // child.add(cubeCam);
                   vehicle.mesh = child;
                   const chassisSize = new THREE.Box3().setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
                   vehicle.chassisBody = new CANNON.Body({ mass: vehicle.physics.weight - vehicle.physics.wheelWeight * 4, shape: new CANNON.Box(new CANNON.Vec3(chassisSize.x / 2, chassisSize.y / 2, chassisSize.z / 2)), material: carMaterial });
@@ -199,8 +220,7 @@
               utils.map.initialize();
 
               // temporary
-              vehicle.model.getObjectByName("Interior_Geo_lodA").visible = false;
-              vehicle.mesh.add(camera);
+              // vehicle.mesh.add(camera);
               camera.position.set(0, 0.9, -6);
               camera.rotation.y = Math.PI;
             });
@@ -241,17 +261,24 @@
               }
             }
           },
-          updateSteering: function() {
+          updateSteering: function(deltaTime) {
             if (keyStates["ArrowLeft"]) {
-              vehicle.setSteeringValue(vehicle.physics.maxSteerVal, 0);
-              vehicle.setSteeringValue(vehicle.physics.maxSteerVal, 1);
+              options.carHeadingIncrement = Math.min(options.carHeadingIncrement + (50 * deltaTime), options.carHeadingMaxIncrement);
             } else if (keyStates["ArrowRight"]) {
-              vehicle.setSteeringValue(-vehicle.physics.maxSteerVal, 0);
-              vehicle.setSteeringValue(-vehicle.physics.maxSteerVal, 1);
+              options.carHeadingIncrement = Math.max(options.carHeadingIncrement - (50 * deltaTime), -options.carHeadingMaxIncrement);
             } else {
-              vehicle.setSteeringValue(0, 0);
-              vehicle.setSteeringValue(0, 1);
+              if (options.carHeadingIncrement < -1 || options.carHeadingIncrement > 1) {
+                options.carHeadingIncrement /= 120 * deltaTime;
+              } else {
+                options.carHeadingIncrement = 0;
+              }
             }
+            vehicle.physics.heading = Math.max(Math.min(vehicle.physics.heading + (options.carHeadingIncrement / vehicle.physics.wheelTurnRatio), 35), -35);
+            vehicle.physics.heading += utils.physics.calculateHeadingReset(vehicle.physics.heading, vehicle.speed);
+            const steeringValue = THREE.MathUtils.degToRad(vehicle.physics.heading);
+            vehicle.setSteeringValue(steeringValue, 0);
+            vehicle.setSteeringValue(steeringValue, 1);
+            vehicle.model.getObjectByName("Steering_Wheel").rotation.z = -steeringValue * vehicle.physics.wheelTurnRatio;
           },
           updateThrottle: function() {
             const direction = keyStates["ArrowUp"] ? -1 : keyStates["ArrowDown"] ? 1 : 0;
@@ -295,6 +322,29 @@
               vehicle.shadow.rotation.z = vehicle.mesh.rotation.y - Math.PI / 2;
               vehicle.shadow.scale.set(vehicle.shadow.shadowSize[0] + shadowOffset, vehicle.shadow.shadowSize[1] + shadowOffset, 0);
             }
+          },
+          updateView: function() {
+            const view = utils.vehicles[chosenVehicle].views[vehicle.currentView];
+            if (vehicle.currentView == 0) {
+              const oldRotation = camera.rotation.clone();
+              camera.position.copy(vehicle.mesh.position);
+              camera.rotation.copy(vehicle.mesh.rotation);
+              camera.translateX(view[0]);
+              camera.translateY(view[1]);
+              camera.translateZ(view[2]);
+              camera.rotation.copy(oldRotation);
+              camera.rotation.y += vehicle.mesh.rotation.y - vehicle.physics.lastRotation;
+              vehicle.physics.lastRotation = vehicle.mesh.rotation.y;
+            } else {
+              camera.position.copy(vehicle.mesh.position);
+              camera.rotation.set(0, vehicle.mesh.rotation.y, 0);
+              camera.translateX(view[0]);
+              camera.translateY(view[1]);
+              camera.translateZ(view[2]);
+              camera.rotateX(view[3]);
+              camera.rotateY(view[4]);
+              camera.rotateZ(view[5]);
+            }
           }
         },
         physics: {
@@ -303,6 +353,14 @@
           },
           aerodynamicArea: function() {
             return vehicle.currentVehicleSpeedKmHour < 0 ? vehicle.physics.rearArea : vehicle.physics.frontArea;
+          },
+          calculateHeadingReset: function(a, v) {
+            const resetStrength = 0.8;
+            const maxResetRate = Math.min(Math.max(v, 15), 30);
+            let correctionAngularVelocity = -resetStrength * a * v;
+            if (correctionAngularVelocity > maxResetRate) correctionAngularVelocity = maxResetRate;
+            if (correctionAngularVelocity < -maxResetRate) correctionAngularVelocity = -maxResetRate;
+            return correctionAngularVelocity / 30;
           }
         },
         map: {
@@ -350,7 +408,26 @@
         game: {
           start: function() {
             renderer.shadowMap.needsUpdate = true;
+            utils.game.controls.switchView(0);
             animate();
+          },
+          controls: {
+            switchView: function(view = null) {
+              let newView = view || vehicle.currentView + 1;
+              if (typeof utils.vehicles[chosenVehicle].views[newView] == "undefined") newView = 0;
+              if (newView == 0) {
+                vehicle.physics.lastRotation = 0;
+                camera.rotation.set(-0.1, Math.PI, 0);
+                vehicle.model.getObjectByName("Interior").visible = true;
+                vehicle.model.getObjectByName("Exterior").visible = false;
+                PointerControls.isLocked = true;
+              } else {
+                vehicle.model.getObjectByName("Interior").visible = false;
+                vehicle.model.getObjectByName("Exterior").visible = true;
+                PointerControls.isLocked = false;
+              }
+              vehicle.currentView = newView;
+            }
           }
         }
       };
@@ -365,6 +442,9 @@
 
       document.addEventListener("keydown", function(event) {
         keyStates[event.key] = true;
+        if (!event.repeat) {
+          if (event.key == "v") utils.game.controls.switchView();
+        }
       });
       document.addEventListener("keyup", function(event) {
         keyStates[event.key] = false;
