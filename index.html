@@ -62,8 +62,6 @@
       window.addEventListener("resize", onWindowResize);
       onWindowResize();
 
-      // const cubeRT = new THREE.WebGLCubeRenderTarget(100);
-      // const cubeCam = new THREE.CubeCamera(0.1, 500, cubeRT);
       let frameCount = 0;
       let lastTime = performance.now();
       let fps = 0;
@@ -106,12 +104,6 @@
           }
         }
 
-        // if (frameCount % 3 == 0 && vehicle.speed > 1 || frameCount == 0) {
-        //   vehicle.model.visible = false;
-        //   cubeCam.update(renderer, scene);
-        //   vehicle.model.visible = true;
-        // }
-
         frameCount++;
         const diff = now - lastTime;
         if (diff >= 1000) {
@@ -119,6 +111,16 @@
           frameCount = 0;
           lastTime = now;
           console.log('FPS:', fps.toFixed(1));
+        }
+
+        if (vehicle) {
+          if (frameCount % 3 == 0 && vehicle.speed > 0.2) {
+            vehicle.model.visible = false;
+            renderer.setRenderTarget(utils.vehicle.mirrorRenderTarget);
+            renderer.render(scene, vehicle.model.getObjectByName("Mirror_L_Camera"));
+            renderer.setRenderTarget(null);
+            vehicle.model.visible = true;
+          }
         }
 
         renderer.render(scene, camera);
@@ -162,67 +164,68 @@
           }
         },
         vehicle: {
+          mirrorRenderTarget: new THREE.WebGLRenderTarget(200, 200),
+          envMap: null,
           initialize: function() {
             vehicle = new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 });
             vehicle.physics = utils.vehicles[chosenVehicle].physics;
-            new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
-              vehicle.model = model.scene;
-              vehicle.model.traverse(child => {
-                if (child.material) child.material.vertexColors = false;
-                if (child.name == "Exterior" || child.name == "Windows") {
-                  new THREE.TextureLoader().load("/1.png", function(texture) {
-                    let pmremGenerator = new THREE.PMREMGenerator(renderer);
-                    child.material.envMap = pmremGenerator.fromEquirectangular(texture).texture;
-                  });
-                } else if (child.name == "Shadow") {
-                  child.shadowSize = [child.scale.x, child.scale.y];
-                  vehicle.shadow = child;
-                  scene.add(vehicle.shadow);
-                } else if (child.name == "Chassis") {
-                  child.rotation.order = "YXZ";
-                  // child.add(cubeCam);
-                  vehicle.mesh = child;
-                  const chassisSize = new THREE.Box3().setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
-                  vehicle.chassisBody = new CANNON.Body({ mass: vehicle.physics.weight - vehicle.physics.wheelWeight * 4, shape: new CANNON.Box(new CANNON.Vec3(chassisSize.x / 2, chassisSize.y / 2, chassisSize.z / 2)), material: carMaterial });
-                  vehicle.body = vehicle.chassisBody;
+            new THREE.TextureLoader().load("1.png", function(texture) {
+              utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
+              new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
+                vehicle.model = model.scene;
+                vehicle.model.traverse(child => {
+                  if (child.material) child.material.vertexColors = false;
+                  if (child.name == "Exterior" || child.name == "Windows" || child.name == "Mirror_M" || child.name == "Mirror_R") {
+                    child.material.envMap = utils.vehicle.envMap;
+                  } else if (child.name == "Shadow") {
+                    child.shadowSize = [child.scale.x, child.scale.y];
+                    vehicle.shadow = child;
+                    scene.add(vehicle.shadow);
+                  } else if (child.name == "Chassis") {
+                    child.rotation.order = "YXZ";
+                    vehicle.mesh = child;
+                    const chassisSize = new THREE.Box3().setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
+                    vehicle.chassisBody = new CANNON.Body({ mass: vehicle.physics.weight - vehicle.physics.wheelWeight * 4, shape: new CANNON.Box(new CANNON.Vec3(chassisSize.x / 2, chassisSize.y / 2, chassisSize.z / 2)), material: carMaterial });
+                    vehicle.body = vehicle.chassisBody;
+                  }
+                });
+                const options = {
+                  radius: 0.33,
+                  directionLocal: new CANNON.Vec3(0, -1, 0),
+                  suspensionStiffness: 30,
+                  suspensionRestLength: 0.18,
+                  frictionSlip: 2,
+                  dampingRelaxation: 6,
+                  dampingCompression: 4.5,
+                  maxSuspensionForce: 120000,
+                  maxSuspensionTravel: 1,
+                  rollInfluence: 0.08,
+                  axleLocal: new CANNON.Vec3(-1, 0, 0),
+                  chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
+                };
+                for (let i = 0; i < 4; i++) {
+                  const wheelMesh = vehicle.model.getObjectByName("Wheels").children[i];
+                  options.chassisConnectionPointLocal.copy(wheelMesh.position);
+                  vehicle.addWheel(options);
+                  const wheel = vehicle.wheelInfos[i];
+                  wheel.index = i;
+                  const wheelBody = new CANNON.Body({ mass: vehicle.physics.wheelWeight, material: wheelMaterial });
+                  const q = new CANNON.Quaternion();
+                  q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
+                  wheelBody.addShape(new CANNON.Cylinder(wheel.radius, wheel.radius, wheel.radius / 2, 20), new CANNON.Vec3(), q);
+                  wheel.body = wheelBody;
+                  wheel.mesh = wheelMesh;
                 }
+                vehicle.body.position.y = 1;
+                vehicle.addToWorld(world);
+                scene.add(vehicle.model);
+                utils.map.initialize();
+  
+                // temporary
+                // vehicle.mesh.add(camera);
+                camera.position.set(0, 0.9, -6);
+                camera.rotation.y = Math.PI;
               });
-              const options = {
-                radius: 0.33,
-                directionLocal: new CANNON.Vec3(0, -1, 0),
-                suspensionStiffness: 30,
-                suspensionRestLength: 0.18,
-                frictionSlip: 2,
-                dampingRelaxation: 6,
-                dampingCompression: 4.5,
-                maxSuspensionForce: 120000,
-                maxSuspensionTravel: 1,
-                rollInfluence: 0.08,
-                axleLocal: new CANNON.Vec3(-1, 0, 0),
-                chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
-              };
-              for (let i = 0; i < 4; i++) {
-                const wheelMesh = vehicle.model.getObjectByName("Wheels").children[i];
-                options.chassisConnectionPointLocal.copy(wheelMesh.position);
-                vehicle.addWheel(options);
-                const wheel = vehicle.wheelInfos[i];
-                wheel.index = i;
-                const wheelBody = new CANNON.Body({ mass: vehicle.physics.wheelWeight, material: wheelMaterial });
-                const q = new CANNON.Quaternion();
-                q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
-                wheelBody.addShape(new CANNON.Cylinder(wheel.radius, wheel.radius, wheel.radius / 2, 20), new CANNON.Vec3(), q);
-                wheel.body = wheelBody;
-                wheel.mesh = wheelMesh;
-              }
-              vehicle.body.position.y = 1;
-              vehicle.addToWorld(world);
-              scene.add(vehicle.model);
-              utils.map.initialize();
-
-              // temporary
-              // vehicle.mesh.add(camera);
-              camera.position.set(0, 0.9, -6);
-              camera.rotation.y = Math.PI;
             });
           },
           updateBrakes: function(deltaTime, time) {
@@ -420,10 +423,16 @@
                 camera.rotation.set(-0.1, Math.PI, 0);
                 vehicle.model.getObjectByName("Interior").visible = true;
                 vehicle.model.getObjectByName("Exterior").visible = false;
+                vehicle.model.getObjectByName("Mirror_L").material.map = utils.vehicle.mirrorRenderTarget.texture;
+                vehicle.model.getObjectByName("Mirror_L").material.envMap = null;
+                vehicle.model.getObjectByName("Windows").material.opacity = 0.3;
                 PointerControls.isLocked = true;
               } else {
                 vehicle.model.getObjectByName("Interior").visible = false;
                 vehicle.model.getObjectByName("Exterior").visible = true;
+                vehicle.model.getObjectByName("Mirror_L").material.map = null;
+                vehicle.model.getObjectByName("Mirror_L").material.envMap = utils.vehicle.envMap;
+                vehicle.model.getObjectByName("Windows").material.opacity = 0.7;
                 PointerControls.isLocked = false;
               }
               vehicle.currentView = newView;
