@@ -77,6 +77,7 @@
         utils.vehicle.updateThrottle();
         utils.vehicle.updateBrakes(deltaTime, time);
         utils.vehicle.updateView();
+        utils.vehicle.updateLights(time);
 
         const spawnFactor = Math.floor(Math.random() * 100);
         if (spawnFactor <= 10) {
@@ -144,6 +145,11 @@
         vehicles: {
           "Honda_Civic_Sport_Touring": {
             physics: {
+              brake: false,
+              throttle: false,
+              blinker: false,
+              lastBlinker: null,
+              autoBlinker: false,
               drivetrain: "fwd",
               brakes: "awb",
               engineForce: 5000,
@@ -166,6 +172,12 @@
         vehicle: {
           mirrorRenderTarget: new THREE.WebGLRenderTarget(200, 200),
           envMap: null,
+          lightsInUse: {
+            "brake": false,
+            "reverse": false,
+            "blinker_l": false,
+            "blinker_r": false
+          },
           initialize: function() {
             vehicle = new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 });
             vehicle.physics = utils.vehicles[chosenVehicle].physics;
@@ -219,12 +231,9 @@
                 vehicle.body.position.y = 1;
                 vehicle.addToWorld(world);
                 scene.add(vehicle.model);
+                utils.game.controls.stopBrake();
+                utils.vehicle.setLights(false);
                 utils.map.initialize();
-  
-                // temporary
-                // vehicle.mesh.add(camera);
-                camera.position.set(0, 0.9, -6);
-                camera.rotation.y = Math.PI;
               });
             });
           },
@@ -233,7 +242,7 @@
             vehicle.setBrake(0, 1);
             vehicle.setBrake(0, 2);
             vehicle.setBrake(0, 3);
-            if (keyStates["b"]) {
+            if (vehicle.physics.brake) {
               if (timeOfBrake == null) timeOfBrake = time;
               const brakeTime = time - timeOfBrake;
               brake = brakeTime < 700 ? 200 : 200 + Math.min((brakeTime - 700) * deltaTime * 20, 600);
@@ -241,7 +250,7 @@
               timeOfBrake = null;
               brake = 0;
             }
-            if (!keyStates["ArrowUp"] && !keyStates["ArrowDown"]) {
+            if (!vehicle.physics.throttle) {
               const brakeForce = Math.abs(vehicle.currentVehicleSpeedKmHour) < 0.5 ? 500 : brake;
               if (vehicle.speed < 0.15 && vehicle.speed > 0.02) {
                 vehicle.setBrake(10, 0);
@@ -282,21 +291,28 @@
             vehicle.setSteeringValue(steeringValue, 0);
             vehicle.setSteeringValue(steeringValue, 1);
             vehicle.model.getObjectByName("Steering_Wheel").rotation.z = -steeringValue * vehicle.physics.wheelTurnRatio;
+            if (vehicle.physics.autoBlinker && Math.abs(vehicle.physics.heading) < 1) utils.game.controls.stopBlinker();
+            if (Math.abs(vehicle.physics.heading) > 1 && vehicle.physics.blinker) {
+              vehicle.physics.autoBlinker = true;
+            } else {
+              vehicle.physics.autoBlinker = false;
+            }
           },
           updateThrottle: function() {
-            const direction = keyStates["ArrowUp"] ? -1 : keyStates["ArrowDown"] ? 1 : 0;
-            const engineForce = vehicle.physics.engineForce * direction;
-            if (vehicle.physics.drivetrain == "fwd") {
-              vehicle.applyEngineForce(engineForce, 0);
-              vehicle.applyEngineForce(engineForce, 1);
-            } else if (vehicle.physics.drivetrain == "rwd") {
-              vehicle.applyEngineForce(engineForce, 2);
-              vehicle.applyEngineForce(engineForce, 3);
-            } else if (vehicle.physics.drivetrain == "awd") {
-              vehicle.applyEngineForce(engineForce, 0);
-              vehicle.applyEngineForce(engineForce, 1);
-              vehicle.applyEngineForce(engineForce, 2);
-              vehicle.applyEngineForce(engineForce, 3);
+            if (vehicle.physics.throttle) {
+              const engineForce = vehicle.physics.engineForce * -1;
+              if (vehicle.physics.drivetrain == "fwd") {
+                vehicle.applyEngineForce(engineForce, 0);
+                vehicle.applyEngineForce(engineForce, 1);
+              } else if (vehicle.physics.drivetrain == "rwd") {
+                vehicle.applyEngineForce(engineForce, 2);
+                vehicle.applyEngineForce(engineForce, 3);
+              } else if (vehicle.physics.drivetrain == "awd") {
+                vehicle.applyEngineForce(engineForce, 0);
+                vehicle.applyEngineForce(engineForce, 1);
+                vehicle.applyEngineForce(engineForce, 2);
+                vehicle.applyEngineForce(engineForce, 3);
+              }
             }
           },
           updatePhysics: function() {
@@ -347,6 +363,82 @@
               camera.rotateX(view[3]);
               camera.rotateY(view[4]);
               camera.rotateZ(view[5]);
+            }
+          },
+          updateLights: function(time) {
+            if (vehicle.physics.blinker) {
+              if (time - vehicle.physics.lastBlinker > 400) {
+                vehicle.physics.lastBlinker = time;
+                if (utils.vehicle.lightsInUse[vehicle.physics.blinker]) {
+                  utils.vehicle.setLights(false, vehicle.physics.blinker);
+                } else {
+                  utils.vehicle.setLights(true, vehicle.physics.blinker);
+                }
+              }
+            }
+          },
+          setLights: function(on, type = null) {
+            const bloom_l = vehicle.model.getObjectByName("Light_Bloom");
+            const bloom_r = vehicle.model.getObjectByName("Light_Bloom1");
+            if (type == "brake") {
+              if (on) {
+                vehicle.model.getObjectByName("Brake_Lights").material.emissive.setHex(0xff0000);
+                bloom_l.visible = true;
+                bloom_l.material.opacity = 0.2;
+                bloom_l.material.color.setHex(0xffaaaa);
+                bloom_r.visible = true;
+                bloom_r.material.opacity = 0.2;
+                bloom_r.material.color.setHex(0xffaaaa);
+              } else {
+                vehicle.model.getObjectByName("Brake_Lights").material.emissive.setHex(0x000000);
+                if (utils.vehicle.lightsInUse["blinker_r"]) {
+                  bloom_l.visible = false;
+                } else if (utils.vehicle.lightsInUse["blinker_l"]) {
+                  bloom_r.visible = false;
+                }
+              }
+            } else if (type == "reverse") {
+              if (on) {
+                vehicle.model.getObjectByName("Reverse_Lights").visible = true;
+                bloom_l.visible = true;
+                bloom_l.material.opacity = 0.3;
+                bloom_l.material.color.setHex(0xffffdd);
+                bloom_r.visible = true;
+                bloom_r.material.opacity = 0.3;
+                bloom_r.material.color.setHex(0xffffdd);
+              } else {
+                vehicle.model.getObjectByName("Reverse_Lights").visible = false;
+              }
+            } else if (type == "blinker_l") {
+              if (on) {
+                vehicle.model.getObjectByName("Blinker_L").visible = true;
+                bloom_l.visible = true;
+                bloom_l.material.opacity = 0.4;
+                bloom_l.material.color.setHex(0xffffff);
+              } else {
+                vehicle.model.getObjectByName("Blinker_L").visible = false;
+              }
+            } else if (type == "blinker_r") {
+              if (on) {
+                vehicle.model.getObjectByName("Blinker_R").visible = true;
+                bloom_r.visible = true;
+                bloom_r.material.opacity = 0.4;
+                bloom_r.material.color.setHex(0xffffff);
+              } else {
+                vehicle.model.getObjectByName("Blinker_R").visible = false;
+              }
+            }
+            if (on) {
+              utils.vehicle.lightsInUse[type] = true;
+            } else {
+              utils.vehicle.lightsInUse[type] = false;
+              let lightsOn = 0;
+              for (light in utils.vehicle.lightsInUse) {
+                if (type == null) {
+                  utils.vehicle.setLights(false, light);
+                } else if (utils.vehicle.lightsInUse[light]) utils.vehicle.setLights(true, light), lightsOn++;
+              }
+              if (lightsOn <= 0) bloom_l.visible = false, bloom_r.visible = false;
             }
           }
         },
@@ -436,6 +528,44 @@
                 PointerControls.isLocked = false;
               }
               vehicle.currentView = newView;
+            },
+            brake: function() {
+              if (vehicle.physics.throttle) utils.game.controls.stopThrottle();
+              vehicle.physics.brake = true;
+              utils.vehicle.setLights(true, "brake");
+            },
+            stopBrake: function() {
+              vehicle.physics.brake = false;
+              utils.vehicle.setLights(false, "brake");
+            },
+            throttle: function() {
+              if (vehicle.physics.brake) utils.game.controls.stopBrake();
+              vehicle.physics.throttle = true;
+            },
+            stopThrottle: function() {
+              vehicle.physics.throttle = false;
+            },
+            leftBlinker: function() {
+              utils.vehicle.setLights(false, "blinker_r");
+              if (vehicle.physics.blinker == "blinker_l") {
+                vehicle.physics.blinker = false;
+                utils.vehicle.setLights(false, "blinker_l");
+              } else {
+                vehicle.physics.blinker = "blinker_l";
+              }
+            },
+            rightBlinker: function() {
+              utils.vehicle.setLights(false, "blinker_l");
+              if (vehicle.physics.blinker == "blinker_r") {
+                vehicle.physics.blinker = false;
+                utils.vehicle.setLights(false, "blinker_r");
+              } else {
+                vehicle.physics.blinker = "blinker_r";
+              }
+            },
+            stopBlinker: function() {
+              utils.vehicle.setLights(false, vehicle.physics.blinker);
+              vehicle.physics.blinker = false;
             }
           }
         }
@@ -453,10 +583,16 @@
         keyStates[event.key] = true;
         if (!event.repeat) {
           if (event.key == "v") utils.game.controls.switchView();
+          if (event.key == "b") utils.game.controls.brake();
+          if (event.key == "ArrowUp") utils.game.controls.throttle();
+          if (event.key == "[") utils.game.controls.leftBlinker();
+          if (event.key == "]") utils.game.controls.rightBlinker();
         }
       });
       document.addEventListener("keyup", function(event) {
         keyStates[event.key] = false;
+        if (event.key == "b") utils.game.controls.stopBrake();
+        if (event.key == "ArrowUp") utils.game.controls.stopThrottle();
       });
 
       new THREE.GLTFLoader().load("propcars.glb", function(model) {
