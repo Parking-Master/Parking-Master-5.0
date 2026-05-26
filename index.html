@@ -26,9 +26,9 @@
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
       const clock = new THREE.Clock();
+      const directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2.5);
+      const ambientLight = new THREE.AmbientLight(0xefe1a7, 0.6);
       camera.rotation.order = "YXZ";
-      directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2.5);
-      ambientLight = new THREE.AmbientLight(0xefe1a7, 0.6);
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.VSMShadowMap;
@@ -43,7 +43,7 @@
       directionalLight.shadow.camera.bottom = -30;
       directionalLight.shadow.mapSize.width = 1024;
       directionalLight.shadow.mapSize.height = 1024;
-      directionalLight.shadow.radius = 4;
+      directionalLight.shadow.radius = 2;
       directionalLight.shadow.bias = -0.00006;
       ambientLight.position.set(2, 1, 1);
       scene.add(directionalLight);
@@ -78,6 +78,7 @@
         utils.vehicle.updateBrakes(deltaTime, time);
         utils.vehicle.updateView();
         utils.vehicle.updateLights(time);
+        utils.vehicle.updateControls();
 
         const spawnFactor = Math.floor(Math.random() * 100);
         if (spawnFactor <= 10) {
@@ -159,7 +160,11 @@
               rearArea: 2.7,
               weight: 1416,
               wheelWeight: 10,
-              lastRotation: 0
+              lastRotation: 0,
+              controlBounds: {
+                "Shifter": [2.8, 2.2, -0.8, -0.45],
+                "Control_Screen": [2.9, 2.2, -0.45, -0.1],
+              }
             },
             views: [
               [0.35, 0.35, -0.2, 0, Math.PI, 0],
@@ -374,6 +379,16 @@
                 } else {
                   utils.vehicle.setLights(true, vehicle.physics.blinker);
                 }
+              }
+            }
+          },
+          updateControls: function() {
+            for (control in vehicle.physics.controlBounds) {
+              const bounds = vehicle.physics.controlBounds[control];
+              if (camera.rotation.y - vehicle.mesh.rotation.y < bounds[0] && camera.rotation.y - vehicle.mesh.rotation.y > bounds[1] && camera.rotation.x > bounds[2] && camera.rotation.x < bounds[3]) {
+                vehicle.model.getObjectByName(control).material.emissive.setHex(0x0b48c1);
+              } else {
+                vehicle.model.getObjectByName(control).material.emissive.setHex(0x000000);
               }
             }
           },
