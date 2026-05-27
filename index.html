@@ -29,6 +29,7 @@
       const directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2.5);
       const ambientLight = new THREE.AmbientLight(0xefe1a7, 0.6);
       camera.rotation.order = "YXZ";
+      camera.position.z = 4;
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.VSMShadowMap;
@@ -146,6 +147,7 @@
         vehicles: {
           "Honda_Civic_Sport_Touring": {
             physics: {
+              gear: "drive",
               brake: false,
               throttle: false,
               blinker: false,
@@ -160,18 +162,34 @@
               rearArea: 2.7,
               weight: 1416,
               wheelWeight: 10,
-              lastRotation: 0,
-              controlBounds: {
-                "Shifter": [2.8, 2.2, -0.8, -0.45],
-                "Control_Screen": [2.9, 2.2, -0.45, -0.1],
+              lastRotation: 0
+            },
+            controls: {
+              "Shifter": {
+                hovering: false,
+                bounds: [-2.2, -2.7, -0.45, -0.8]
+              },
+              "Control_Screen": {
+                hovering: false,
+                bounds: [-2.2, -2.8, -0.1, -0.45]
+              },
+              "Lever_L": {
+                hovering: false,
+                bounds: [3.1, 2.8, -0.25, -0.5]
+              },
+              "Lever_R": {
+                hovering: false,
+                bounds: [-2.8, -3.1, -0.25, -0.5]
               }
             },
+            currentControl: null,
             views: [
               [0.35, 0.35, -0.2, 0, Math.PI, 0],
               [0, 1.1, -6, 0.08, Math.PI, 0],
               [1.2, 0, -3, 0.05, Math.PI, 0],
-              [0, 0.4, 4.5, -0.1, 0, 0],
-            ]
+              [0, 0.4, 4.5, -0.1, 0, 0]
+            ],
+            currentView: 0
           }
         },
         vehicle: {
@@ -184,8 +202,7 @@
             "blinker_r": false
           },
           initialize: function() {
-            vehicle = new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 });
-            vehicle.physics = utils.vehicles[chosenVehicle].physics;
+            vehicle = Object.assign(new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 }), utils.vehicles[chosenVehicle]);
             new THREE.TextureLoader().load("1.png", function(texture) {
               utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
               new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
@@ -236,8 +253,10 @@
                 vehicle.body.position.y = 1;
                 vehicle.addToWorld(world);
                 scene.add(vehicle.model);
+                renderer.render(scene, camera);
                 utils.game.controls.stopBrake();
                 utils.vehicle.setLights(false);
+                utils.vehicle.setInstruments(false);
                 utils.map.initialize();
               });
             });
@@ -277,6 +296,12 @@
                 }
               }
             }
+            if (vehicle.physics.gear == "park") {
+              vehicle.setBrake(10, 0);
+              vehicle.setBrake(10, 1);
+              vehicle.setBrake(10, 2);
+              vehicle.setBrake(10, 3);
+            }
           },
           updateSteering: function(deltaTime) {
             if (keyStates["ArrowLeft"]) {
@@ -305,7 +330,7 @@
           },
           updateThrottle: function() {
             if (vehicle.physics.throttle) {
-              const engineForce = vehicle.physics.engineForce * -1;
+              const engineForce = vehicle.physics.engineForce * (vehicle.physics.gear == "drive" ? -1 : vehicle.physics.gear == "reverse" ? 1 : 0);
               if (vehicle.physics.drivetrain == "fwd") {
                 vehicle.applyEngineForce(engineForce, 0);
                 vehicle.applyEngineForce(engineForce, 1);
@@ -348,7 +373,7 @@
             }
           },
           updateView: function() {
-            const view = utils.vehicles[chosenVehicle].views[vehicle.currentView];
+            const view = vehicle.views[vehicle.currentView];
             if (vehicle.currentView == 0) {
               const oldRotation = camera.rotation.clone();
               camera.position.copy(vehicle.mesh.position);
@@ -376,19 +401,32 @@
                 vehicle.physics.lastBlinker = time;
                 if (utils.vehicle.lightsInUse[vehicle.physics.blinker]) {
                   utils.vehicle.setLights(false, vehicle.physics.blinker);
+                  utils.vehicle.setInstruments(false, "Blinker");
                 } else {
                   utils.vehicle.setLights(true, vehicle.physics.blinker);
+                  utils.vehicle.setInstruments(true, "Blinker");
                 }
               }
             }
           },
           updateControls: function() {
-            for (control in vehicle.physics.controlBounds) {
-              const bounds = vehicle.physics.controlBounds[control];
-              if (camera.rotation.y - vehicle.mesh.rotation.y < bounds[0] && camera.rotation.y - vehicle.mesh.rotation.y > bounds[1] && camera.rotation.x > bounds[2] && camera.rotation.x < bounds[3]) {
-                vehicle.model.getObjectByName(control).material.emissive.setHex(0x0b48c1);
+            for (controlName in vehicle.controls) {
+              const control = vehicle.controls[controlName];
+              const cameraRotation = vehicle.mesh.rotation.y - camera.rotation.y;
+              const preRotation = cameraRotation  - (cameraRotation > Math.PI ? 6.2 : 0);
+              const finalRotation = preRotation < -Math.PI ? preRotation + Math.PI * 2 : preRotation;
+              if (finalRotation < control.bounds[0] && finalRotation > control.bounds[1] && camera.rotation.x < control.bounds[2] && camera.rotation.x > control.bounds[3]) {
+                if (!control.hovering) {
+                  control.hovering = true;
+                  vehicle.model.getObjectByName(controlName).material.emissive.setHex(0x0b48c1);
+                  vehicle.currentControl = controlName;
+                }
               } else {
-                vehicle.model.getObjectByName(control).material.emissive.setHex(0x000000);
+                if (control.hovering) {
+                  control.hovering = false;
+                  vehicle.model.getObjectByName(controlName).material.emissive.setHex(0x000000);
+                  if (vehicle.currentControl == controlName) vehicle.currentControl = null;
+                }
               }
             }
           },
@@ -455,6 +493,15 @@
               }
               if (lightsOn <= 0) bloom_l.visible = false, bloom_r.visible = false;
             }
+          },
+          setInstruments: function(on, instrument = null) {
+            if (instrument == null) {
+              vehicle.model.traverse(child => {
+                if (child.name.startsWith("Instrument_")) child.visible = on;
+              });
+            } else {
+              vehicle.model.getObjectByName("Instrument_" + instrument).visible = on;
+            }
           }
         },
         physics: {
@@ -484,12 +531,13 @@
                   child.material.metalness = 0.1;
                   child.material.roughness = 1;
                 }
-                if (child.name == "Plane009" || child.name == "vegetation_long_grass_04_0001" || child.name == "Mesh_2_6") {
+                if (child.name == "Plane009" || child.name == "vegetation_long_grass_04_0001" || child.name == "Mesh_2_6" || child.name == "Plane") {
                   child.material.map.anisotropy = 4;
                   child.material.map.needsUpdate = true;
                 }
               });
               scene.add(map);
+              renderer.render(scene, camera);
               const collisionMap = map.getObjectByName("CollisionMap");
               collisionMap.traverse(child => {
                 if (child.isMesh) {
@@ -523,8 +571,8 @@
           },
           controls: {
             switchView: function(view = null) {
-              let newView = view || vehicle.currentView + 1;
-              if (typeof utils.vehicles[chosenVehicle].views[newView] == "undefined") newView = 0;
+              let newView = view == null ? vehicle.currentView + 1 : view;
+              if (typeof vehicle.views[newView] == "undefined") newView = 0;
               if (newView == 0) {
                 vehicle.physics.lastRotation = 0;
                 camera.rotation.set(-0.1, Math.PI, 0);
@@ -532,6 +580,7 @@
                 vehicle.model.getObjectByName("Exterior").visible = false;
                 vehicle.model.getObjectByName("Mirror_L").material.map = utils.vehicle.mirrorRenderTarget.texture;
                 vehicle.model.getObjectByName("Mirror_L").material.envMap = null;
+                vehicle.model.getObjectByName("Mirror_L").material.needsUpdate = true;
                 vehicle.model.getObjectByName("Windows").material.opacity = 0.3;
                 PointerControls.isLocked = true;
               } else {
@@ -539,6 +588,7 @@
                 vehicle.model.getObjectByName("Exterior").visible = true;
                 vehicle.model.getObjectByName("Mirror_L").material.map = null;
                 vehicle.model.getObjectByName("Mirror_L").material.envMap = utils.vehicle.envMap;
+                vehicle.model.getObjectByName("Mirror_L").material.needsUpdate = true;
                 vehicle.model.getObjectByName("Windows").material.opacity = 0.7;
                 PointerControls.isLocked = false;
               }
@@ -562,25 +612,67 @@
             },
             leftBlinker: function() {
               utils.vehicle.setLights(false, "blinker_r");
+              utils.vehicle.setInstruments(false, "Blinker");
               if (vehicle.physics.blinker == "blinker_l") {
-                vehicle.physics.blinker = false;
                 utils.vehicle.setLights(false, "blinker_l");
+                utils.vehicle.setInstruments(false, "Blinker");
+                vehicle.model.getObjectByName("Lever_L").rotation.x = 0;
+                vehicle.physics.blinker = false;
               } else {
                 vehicle.physics.blinker = "blinker_l";
+                vehicle.model.getObjectByName("Lever_L").rotation.x = -0.3;
               }
             },
             rightBlinker: function() {
               utils.vehicle.setLights(false, "blinker_l");
+              utils.vehicle.setInstruments(false, "Blinker");
               if (vehicle.physics.blinker == "blinker_r") {
-                vehicle.physics.blinker = false;
                 utils.vehicle.setLights(false, "blinker_r");
+                utils.vehicle.setInstruments(false, "Blinker");
+                vehicle.model.getObjectByName("Lever_L").rotation.x = 0;
+                vehicle.physics.blinker = false;
               } else {
                 vehicle.physics.blinker = "blinker_r";
+                vehicle.model.getObjectByName("Lever_L").rotation.x = 0.3;
               }
             },
             stopBlinker: function() {
               utils.vehicle.setLights(false, vehicle.physics.blinker);
+              utils.vehicle.setInstruments(false, "Blinker");
+              vehicle.model.getObjectByName("Lever_L").rotation.x = 0;
               vehicle.physics.blinker = false;
+            },
+            shift: function(gear, direction = null) {
+              if (!gear) {
+                if (direction == "forward") {
+                  if (vehicle.physics.gear == "drive") {
+                    gear = "reverse";
+                  } else if (vehicle.physics.gear == "reverse") {
+                    gear = "park";
+                  }
+                } else {
+                  if (vehicle.physics.gear == "park") {
+                    gear = "reverse"
+                  } else if (vehicle.physics.gear == "reverse") {
+                    gear = "drive";
+                  }
+                }
+              }
+              if (gear == "drive") {
+                vehicle.physics.gear = "drive";
+                vehicle.model.getObjectByName("Shifter").rotation.x = 0;
+                utils.vehicle.setLights(false, "reverse");
+              } else if (gear == "reverse") {
+                vehicle.physics.gear = "reverse";
+                vehicle.model.getObjectByName("Shifter").rotation.x = 0.2;
+                utils.vehicle.setLights(true, "reverse");
+              } else if (gear == "park") {
+                if (vehicle.speed < 1) {
+                  vehicle.physics.gear = "park";
+                  vehicle.model.getObjectByName("Shifter").rotation.x = 0.4;
+                  utils.vehicle.setLights(false, "reverse");
+                }
+              }
             }
           }
         }
@@ -597,11 +689,23 @@
       document.addEventListener("keydown", function(event) {
         keyStates[event.key] = true;
         if (!event.repeat) {
+          if (vehicle.currentView == 0) {
+            if (vehicle.currentControl == "Control_Screen") {
+            } else if (vehicle.currentControl == "Shifter") {
+              if (event.key == "ArrowUp") utils.game.controls.shift(null, "forward");
+              if (event.key == "ArrowDown") utils.game.controls.shift(null, "backward");
+            } else if (vehicle.currentControl == "Lever_L") {
+            } else if (vehicle.currentControl == "Lever_R") {
+            }
+          }
           if (event.key == "v") utils.game.controls.switchView();
           if (event.key == "b") utils.game.controls.brake();
           if (event.key == "ArrowUp") utils.game.controls.throttle();
           if (event.key == "[") utils.game.controls.leftBlinker();
           if (event.key == "]") utils.game.controls.rightBlinker();
+          if (event.key == "p") utils.game.controls.shift("park");
+          if (event.key == "r") utils.game.controls.shift("reverse");
+          if (event.key == "d") utils.game.controls.shift("drive");
         }
       });
       document.addEventListener("keyup", function(event) {
