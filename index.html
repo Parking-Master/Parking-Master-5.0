@@ -24,7 +24,7 @@
       const antialias = 0.5;
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 2000);
       const clock = new THREE.Clock();
       const directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2.5);
       const ambientLight = new THREE.AmbientLight(0xefe1a7, 0.6);
@@ -142,7 +142,7 @@
 
       let options = { carHeadingMaxIncrement: 11, carHeadingIncrement: 0 };
 
-      let chosenVehicle = "Honda_Civic_Sport_Touring";
+      let chosenVehicle = "Toyota_RAV4_Hybrid";
       utils = {
         vehicles: {
           "Honda_Civic_Sport_Touring": {
@@ -162,17 +162,31 @@
               rearArea: 2.7,
               weight: 1416,
               wheelWeight: 10,
-              lastRotation: 0
+              lastRotation: 0,
+              wheelsPhysics: {
+                radius: 0.33,
+                directionLocal: new CANNON.Vec3(0, -1, 0),
+                suspensionStiffness: 30,
+                suspensionRestLength: 0.18,
+                frictionSlip: 2,
+                dampingRelaxation: 6,
+                dampingCompression: 4.5,
+                maxSuspensionForce: 120000,
+                maxSuspensionTravel: 1,
+                rollInfluence: 0.08,
+                axleLocal: new CANNON.Vec3(-1, 0, 0),
+                chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
+              }
             },
             controls: {
               "Shifter": {
                 hovering: false,
                 bounds: [-2.2, -2.7, -0.45, -0.8]
               },
-              "Control_Screen": {
-                hovering: false,
-                bounds: [-2.2, -2.8, -0.1, -0.45]
-              },
+              // "Control_Screen": {
+              //   hovering: false,
+              //   bounds: [-2.2, -2.8, -0.1, -0.45]
+              // },
               "Lever_L": {
                 hovering: false,
                 bounds: [3.1, 2.8, -0.25, -0.5]
@@ -188,6 +202,66 @@
               [0, 1.1, -6, 0.08, Math.PI, 0],
               [1.2, 0, -3, 0.05, Math.PI, 0],
               [0, 0.4, 4.5, -0.1, 0, 0]
+            ],
+            currentView: 0
+          },
+          "Toyota_RAV4_Hybrid": {
+            physics: {
+              gear: "drive",
+              brake: false,
+              throttle: false,
+              blinker: false,
+              lastBlinker: null,
+              autoBlinker: false,
+              drivetrain: "fwd",
+              brakes: "awb",
+              engineForce: 5000,
+              heading: 0,
+              wheelTurnRatio: 10,
+              frontArea: 2.5,
+              rearArea: 2.9,
+              weight: 1700,
+              wheelWeight: 10,
+              lastRotation: 0,
+              wheelsPhysics: {
+                radius: 0.378,
+                directionLocal: new CANNON.Vec3(0, -1, 0),
+                suspensionStiffness: 44,
+                suspensionRestLength: 0.37,
+                frictionSlip: 4.5,
+                dampingRelaxation: 2.3,
+                dampingCompression: 4.4,
+                maxSuspensionForce: 100000,
+                maxSuspensionTravel: 1,
+                rollInfluence: 0.08,
+                axleLocal: new CANNON.Vec3(-1, 0, 0),
+                chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
+              }
+            },
+            controls: {
+              "Shifter": {
+                hovering: false,
+                bounds: [-2.2, -2.7, -0.45, -0.8]
+              },
+              // "Control_Screen": {
+              //   hovering: false,
+              //   bounds: [-2.2, -2.8, -0.1, -0.45]
+              // },
+              "Lever_L": {
+                hovering: false,
+                bounds: [3.1, 2.8, -0.25, -0.5]
+              },
+              "Lever_R": {
+                hovering: false,
+                bounds: [-2.8, -3.1, -0.25, -0.5]
+              }
+            },
+            currentControl: null,
+            views: [
+              [0.35, 0.52, -0.1, 0, Math.PI, 0],
+              [0, 1.2, -6, 0.08, Math.PI, 0],
+              [1.3, 0, -3.2, 0.05, Math.PI, 0],
+              [0, 0.6, 5, -0.05, 0, 0]
             ],
             currentView: 0
           }
@@ -208,8 +282,11 @@
               new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
                 vehicle.model = model.scene;
                 vehicle.model.traverse(child => {
-                  if (child.material) child.material.vertexColors = false;
-                  if (child.name == "Exterior" || child.name == "Windows" || child.name == "Mirror_M" || child.name == "Mirror_R") {
+                  if (child.material) {
+                    child.material.vertexColors = false;
+                    if (child.name != "Windows") child.material.depthWrite = true;
+                  }
+                  if (child.name == "Exterior" || child.name == "Roof" || child.name == "Windows" || child.name == "Mirror_M" || child.name == "Mirror_R") {
                     child.material.envMap = utils.vehicle.envMap;
                   } else if (child.name == "Shadow") {
                     child.shadowSize = [child.scale.x, child.scale.y];
@@ -223,24 +300,10 @@
                     vehicle.body = vehicle.chassisBody;
                   }
                 });
-                const options = {
-                  radius: 0.33,
-                  directionLocal: new CANNON.Vec3(0, -1, 0),
-                  suspensionStiffness: 30,
-                  suspensionRestLength: 0.18,
-                  frictionSlip: 2,
-                  dampingRelaxation: 6,
-                  dampingCompression: 4.5,
-                  maxSuspensionForce: 120000,
-                  maxSuspensionTravel: 1,
-                  rollInfluence: 0.08,
-                  axleLocal: new CANNON.Vec3(-1, 0, 0),
-                  chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
-                };
                 for (let i = 0; i < 4; i++) {
                   const wheelMesh = vehicle.model.getObjectByName("Wheels").children[i];
-                  options.chassisConnectionPointLocal.copy(wheelMesh.position);
-                  vehicle.addWheel(options);
+                  vehicle.physics.wheelsPhysics.chassisConnectionPointLocal.copy(wheelMesh.position);
+                  vehicle.addWheel(vehicle.physics.wheelsPhysics);
                   const wheel = vehicle.wheelInfos[i];
                   wheel.index = i;
                   const wheelBody = new CANNON.Body({ mass: vehicle.physics.wheelWeight, material: wheelMaterial });
@@ -578,18 +641,22 @@
                 camera.rotation.set(-0.1, Math.PI, 0);
                 vehicle.model.getObjectByName("Interior").visible = true;
                 vehicle.model.getObjectByName("Exterior").visible = false;
+                vehicle.model.getObjectByName("Exterior_View").visible = false;
                 vehicle.model.getObjectByName("Mirror_L").material.map = utils.vehicle.mirrorRenderTarget.texture;
                 vehicle.model.getObjectByName("Mirror_L").material.envMap = null;
                 vehicle.model.getObjectByName("Mirror_L").material.needsUpdate = true;
                 vehicle.model.getObjectByName("Windows").material.opacity = 0.3;
+                vehicle.model.getObjectByName("Windows").material.depthWrite = false;
                 PointerControls.isLocked = true;
               } else {
                 vehicle.model.getObjectByName("Interior").visible = false;
                 vehicle.model.getObjectByName("Exterior").visible = true;
+                vehicle.model.getObjectByName("Exterior_View").visible = true;
                 vehicle.model.getObjectByName("Mirror_L").material.map = null;
                 vehicle.model.getObjectByName("Mirror_L").material.envMap = utils.vehicle.envMap;
                 vehicle.model.getObjectByName("Mirror_L").material.needsUpdate = true;
                 vehicle.model.getObjectByName("Windows").material.opacity = 0.7;
+                vehicle.model.getObjectByName("Windows").material.depthWrite = true;
                 PointerControls.isLocked = false;
               }
               vehicle.currentView = newView;
