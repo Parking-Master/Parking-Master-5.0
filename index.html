@@ -5,36 +5,53 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
+      @font-face {
+        font-family: "Toxigenesis";
+        src: url(fonts/Toxigenesis.ttf);
+      }
       html, body {
         margin: 0;
       }
       canvas {
-        position: relative;
+        position: absolute;
         width: 100% !important;
         height: 100% !important;
+      }
+      .ui {
+        z-index: 10;
       }
     </style>
   </head>
   <body>
     <script src="three.js"></script>
     <script src="GLTFLoader.js"></script>
+    <script src="DecalGeometry.js"></script>
     <script src="cannon.js"></script>
     <script src="PointerLockControls.js"></script>
+    <canvas class="ui"></canvas>
     <script>
+      function generateUUID() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+          let r = Math.random() * 16 | 0;
+          let v = (c == "x" ? r : (r & 0x3 | 0x8));
+          return v.toString(16);
+        });
+      }
+
       const antialias = 0.5;
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 2000);
       const clock = new THREE.Clock();
-      const directionalLight = new THREE.DirectionalLight(0xf4e6bc, 2.5);
-      const ambientLight = new THREE.AmbientLight(0xefe1a7, 0.6);
+      const directionalLight = new THREE.DirectionalLight(0xf4e6bc, 1.6);
+      const ambientLight = new THREE.AmbientLight(0xefe1a7, 0.4);
       camera.rotation.order = "YXZ";
       camera.position.z = 4;
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.VSMShadowMap;
       renderer.outputEncoding = THREE.sRGBEncoding;
-      directionalLight.position.set(40, 50, -20);
+      directionalLight.position.set(-40, 50, 0);
       directionalLight.castShadow = true;
       directionalLight.shadow.camera.near = 0.01;
       directionalLight.shadow.camera.far = 500;
@@ -63,11 +80,16 @@
       window.addEventListener("resize", onWindowResize);
       onWindowResize();
 
+      let startTime = Date.now();
+      let maxTime = 120;
       let frameCount = 0;
       let lastTime = performance.now();
       let fps = 0;
       let brake = 0;
+      let engine = 0;
       let timeOfBrake = null;
+      let timeOfEngine = null;
+      let gear = 2;
       function animate(now) {
         const deltaTime = Math.min(0.04, clock.getDelta());
         const time = Date.now();
@@ -75,11 +97,13 @@
 
         utils.vehicle.updatePhysics();
         utils.vehicle.updateSteering(deltaTime);
-        utils.vehicle.updateThrottle();
+        utils.vehicle.updateThrottle(deltaTime, time);
         utils.vehicle.updateBrakes(deltaTime, time);
         utils.vehicle.updateView();
         utils.vehicle.updateLights(time);
         utils.vehicle.updateControls();
+        utils.vehicle.updateEffects();
+        utils.ui.update(time);
 
         const spawnFactor = Math.floor(Math.random() * 100);
         if (spawnFactor <= 10) {
@@ -106,6 +130,17 @@
             spawnedPropCars.splice(spawnedPropCars.indexOf(propCar), 1);
           }
         }
+        for (id in objects) {
+          const object = objects[id];
+          if (time - object.timestamp > object.delay) {
+            if (object.objectType == "tireMarks") {
+              scene.remove(object);
+              object.geometry.dispose();
+              object.material.dispose();
+              delete objects[id];
+            }
+          }
+        }
 
         frameCount++;
         const diff = now - lastTime;
@@ -120,7 +155,7 @@
           if (frameCount % 3 == 0 && vehicle.speed > 0.2) {
             vehicle.model.visible = false;
             renderer.setRenderTarget(utils.vehicle.mirrorRenderTarget);
-            renderer.render(scene, vehicle.model.getObjectByName("Mirror_L_Camera"));
+            renderer.render(scene, vehicle.parts.Mirror_L_Camera);
             renderer.setRenderTarget(null);
             vehicle.model.visible = true;
           }
@@ -142,8 +177,18 @@
 
       let options = { carHeadingMaxIncrement: 11, carHeadingIncrement: 0 };
 
-      let chosenVehicle = "Toyota_RAV4_Hybrid";
+      let chosenVehicle = "Toyota_RAV4";
+      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5)];
+      const eulers = [new THREE.Euler()];
+      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("/images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false })];
+      const objects = {};
       utils = {
+        autoDeleteObject: function(object, type, delay) {
+          object.objectType = type;
+          object.delay = delay;
+          object.timestamp = Date.now();
+          objects[generateUUID()] = object;
+        },
         vehicles: {
           "Honda_Civic_Sport_Touring": {
             physics: {
@@ -155,13 +200,17 @@
               autoBlinker: false,
               drivetrain: "fwd",
               brakes: "awb",
-              engineForce: 5000,
+              engineForce: 1600,
               heading: 0,
               wheelTurnRatio: 12,
               frontArea: 2.2,
               rearArea: 2.7,
               weight: 1416,
               wheelWeight: 10,
+              gearRatios: [3.64, 2.08, 1.36, 1.02, 0.83, 0.69],
+              finalDriveRatio: 4.11,
+              upshiftRPM: 5500,
+              downshiftRPM: 2000,
               lastRotation: 0,
               wheelsPhysics: {
                 radius: 0.33,
@@ -178,6 +227,7 @@
                 chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
               }
             },
+            parts: {},
             controls: {
               "Shifter": {
                 hovering: false,
@@ -205,7 +255,7 @@
             ],
             currentView: 0
           },
-          "Toyota_RAV4_Hybrid": {
+          "Toyota_RAV4": {
             physics: {
               gear: "drive",
               brake: false,
@@ -215,18 +265,22 @@
               autoBlinker: false,
               drivetrain: "fwd",
               brakes: "awb",
-              engineForce: 5000,
+              engineForce: 945,
               heading: 0,
               wheelTurnRatio: 10,
               frontArea: 2.5,
               rearArea: 2.9,
               weight: 1700,
               wheelWeight: 10,
+              gearRatios: [5.25, 3.03, 1.95, 1.46, 1.22, 1, 0.81, 0.67],
+              finalDriveRatio: 3.18,
+              upshiftRPM: 5500,
+              downshiftRPM: 1800,
               lastRotation: 0,
               wheelsPhysics: {
                 radius: 0.378,
                 directionLocal: new CANNON.Vec3(0, -1, 0),
-                suspensionStiffness: 44,
+                suspensionStiffness: 42,
                 suspensionRestLength: 0.37,
                 frictionSlip: 4.5,
                 dampingRelaxation: 2.3,
@@ -238,6 +292,7 @@
                 chassisConnectionPointLocal: new CANNON.Vec3(1, 1, 0)
               }
             },
+            parts: {},
             controls: {
               "Shifter": {
                 hovering: false,
@@ -277,16 +332,17 @@
           },
           initialize: function() {
             vehicle = Object.assign(new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 }), utils.vehicles[chosenVehicle]);
-            new THREE.TextureLoader().load("1.png", function(texture) {
+            new THREE.TextureLoader().load("images/skies/1_envmap.png", function(texture) {
               utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
               new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
                 vehicle.model = model.scene;
                 vehicle.model.traverse(child => {
+                  vehicle.parts[child.name] = child;
                   if (child.material) {
                     child.material.vertexColors = false;
                     if (child.name != "Windows") child.material.depthWrite = true;
                   }
-                  if (child.name == "Exterior" || child.name == "Roof" || child.name == "Windows" || child.name == "Mirror_M" || child.name == "Mirror_R") {
+                  if (child.name == "Exterior" || child.name == "Roof" || child.name == "Windows" || child.name == "Mirror_R") {
                     child.material.envMap = utils.vehicle.envMap;
                   } else if (child.name == "Shadow") {
                     child.shadowSize = [child.scale.x, child.scale.y];
@@ -301,7 +357,7 @@
                   }
                 });
                 for (let i = 0; i < 4; i++) {
-                  const wheelMesh = vehicle.model.getObjectByName("Wheels").children[i];
+                  const wheelMesh = vehicle.parts.Wheels.children[i];
                   vehicle.physics.wheelsPhysics.chassisConnectionPointLocal.copy(wheelMesh.position);
                   vehicle.addWheel(vehicle.physics.wheelsPhysics);
                   const wheel = vehicle.wheelInfos[i];
@@ -332,7 +388,7 @@
             if (vehicle.physics.brake) {
               if (timeOfBrake == null) timeOfBrake = time;
               const brakeTime = time - timeOfBrake;
-              brake = brakeTime < 700 ? 200 : 200 + Math.min((brakeTime - 700) * deltaTime * 20, 600);
+              brake = brakeTime < 700 ? 100 : 100 + Math.min((brakeTime - 700) * deltaTime * 20, 600);
             } else {
               timeOfBrake = null;
               brake = 0;
@@ -383,7 +439,7 @@
             const steeringValue = THREE.MathUtils.degToRad(vehicle.physics.heading);
             vehicle.setSteeringValue(steeringValue, 0);
             vehicle.setSteeringValue(steeringValue, 1);
-            vehicle.model.getObjectByName("Steering_Wheel").rotation.z = -steeringValue * vehicle.physics.wheelTurnRatio;
+            vehicle.parts.Steering_Wheel.rotation.z = -steeringValue * vehicle.physics.wheelTurnRatio;
             if (vehicle.physics.autoBlinker && Math.abs(vehicle.physics.heading) < 1) utils.game.controls.stopBlinker();
             if (Math.abs(vehicle.physics.heading) > 1 && vehicle.physics.blinker) {
               vehicle.physics.autoBlinker = true;
@@ -391,9 +447,16 @@
               vehicle.physics.autoBlinker = false;
             }
           },
-          updateThrottle: function() {
+          updateThrottle: function(deltaTime, time) {
+            if (vehicle.rpm > vehicle.physics.upshiftRPM && gear < vehicle.physics.gearRatios.length - 1) gear++;
+            if (vehicle.rpm < vehicle.physics.downshiftRPM && gear > 0) gear--;
+            const ratio = vehicle.physics.gearRatios[gear];
             if (vehicle.physics.throttle) {
-              const engineForce = vehicle.physics.engineForce * (vehicle.physics.gear == "drive" ? -1 : vehicle.physics.gear == "reverse" ? 1 : 0);
+              if (timeOfEngine == null) timeOfEngine = time;
+              const engineTime = time - timeOfEngine;
+              engine = 0.2 + Math.min(engineTime * deltaTime * 0.03, 0.8);
+
+              const engineForce = engine * vehicle.physics.engineForce * ratio * (vehicle.physics.gear == "drive" ? -1 : vehicle.physics.gear == "reverse" ? 1 : 0);
               if (vehicle.physics.drivetrain == "fwd") {
                 vehicle.applyEngineForce(engineForce, 0);
                 vehicle.applyEngineForce(engineForce, 1);
@@ -406,17 +469,22 @@
                 vehicle.applyEngineForce(engineForce, 2);
                 vehicle.applyEngineForce(engineForce, 3);
               }
+            } else {
+              timeOfEngine = null;
+              engine = 0;
             }
           },
           updatePhysics: function() {
             if (vehicle.mesh) {
               const velocity = vehicle.chassisBody.velocity.clone();
-              const v = velocity.length();
-              const dragForce = 0.5 * 1.225 * 0.3 * utils.physics.aerodynamicArea() * v * v * 50 * utils.physics.engineBrakeForce(v);
-              vehicle.speed = v;
-              if (v > 0) {
+              vehicle.speed = velocity.length();
+              vehicle.rpm = (vehicle.speed / (2 * Math.PI * vehicle.physics.wheelsPhysics.radius)) * 60 * vehicle.physics.gearRatios[gear] * vehicle.physics.finalDriveRatio;
+              const dragForce = 0.5 * 1.225 * 0.32 * utils.physics.aerodynamicArea() * vehicle.speed * vehicle.speed * utils.physics.engineBrakeForce(vehicle.speed);
+              const rollResistance = 0.012 * vehicle.physics.weight * 9.81;
+              const resistance = dragForce + rollResistance;
+              if (vehicle.speed > 0.1) {
                 velocity.normalize();
-                velocity.scale(-dragForce, velocity);
+                velocity.scale(-resistance, velocity);
                 vehicle.body.applyForce(velocity, vehicle.body.position);
               }
               vehicle.mesh.position.copy(vehicle.body.position);
@@ -481,24 +549,33 @@
               if (finalRotation < control.bounds[0] && finalRotation > control.bounds[1] && camera.rotation.x < control.bounds[2] && camera.rotation.x > control.bounds[3]) {
                 if (!control.hovering) {
                   control.hovering = true;
-                  vehicle.model.getObjectByName(controlName).material.emissive.setHex(0x0b48c1);
+                  vehicle.parts[controlName].material.emissive.setHex(0x0b48c1);
                   vehicle.currentControl = controlName;
                 }
               } else {
                 if (control.hovering) {
                   control.hovering = false;
-                  vehicle.model.getObjectByName(controlName).material.emissive.setHex(0x000000);
+                  vehicle.parts[controlName].material.emissive.setHex(0x000000);
                   if (vehicle.currentControl == controlName) vehicle.currentControl = null;
                 }
               }
             }
           },
+          updateEffects: function() {
+            if (vehicle.sliding && vehicle.speed > 10) {
+              const position = vectors[0].set(vehicle.mesh.position.x, 0, vehicle.mesh.position.z);
+              const rotation = eulers[0].set(0, vehicle.mesh.rotation.y, 0);
+              const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(map.getObjectByName("Mesh_2_6"), position, rotation, vectors[1]), materials[0]);
+              scene.add(decalMesh);
+              utils.autoDeleteObject(decalMesh, "tireMarks", 5000);
+            }
+          },
           setLights: function(on, type = null) {
-            const bloom_l = vehicle.model.getObjectByName("Light_Bloom");
-            const bloom_r = vehicle.model.getObjectByName("Light_Bloom1");
+            const bloom_l = vehicle.parts.Light_Bloom;
+            const bloom_r = vehicle.parts.Light_Bloom1;
             if (type == "brake") {
               if (on) {
-                vehicle.model.getObjectByName("Brake_Lights").material.emissive.setHex(0xff0000);
+                vehicle.parts.Brake_Lights.material.emissive.setHex(0xff0000);
                 bloom_l.visible = true;
                 bloom_l.material.opacity = 0.2;
                 bloom_l.material.color.setHex(0xffaaaa);
@@ -506,7 +583,7 @@
                 bloom_r.material.opacity = 0.2;
                 bloom_r.material.color.setHex(0xffaaaa);
               } else {
-                vehicle.model.getObjectByName("Brake_Lights").material.emissive.setHex(0x000000);
+                vehicle.parts.Brake_Lights.material.emissive.setHex(0x000000);
                 if (utils.vehicle.lightsInUse["blinker_r"]) {
                   bloom_l.visible = false;
                 } else if (utils.vehicle.lightsInUse["blinker_l"]) {
@@ -515,7 +592,7 @@
               }
             } else if (type == "reverse") {
               if (on) {
-                vehicle.model.getObjectByName("Reverse_Lights").visible = true;
+                vehicle.parts.Reverse_Lights.visible = true;
                 bloom_l.visible = true;
                 bloom_l.material.opacity = 0.3;
                 bloom_l.material.color.setHex(0xffffdd);
@@ -523,25 +600,25 @@
                 bloom_r.material.opacity = 0.3;
                 bloom_r.material.color.setHex(0xffffdd);
               } else {
-                vehicle.model.getObjectByName("Reverse_Lights").visible = false;
+                vehicle.parts.Reverse_Lights.visible = false;
               }
             } else if (type == "blinker_l") {
               if (on) {
-                vehicle.model.getObjectByName("Blinker_L").visible = true;
+                vehicle.parts.Blinker_L.visible = true;
                 bloom_l.visible = true;
                 bloom_l.material.opacity = 0.4;
                 bloom_l.material.color.setHex(0xffffff);
               } else {
-                vehicle.model.getObjectByName("Blinker_L").visible = false;
+                vehicle.parts.Blinker_L.visible = false;
               }
             } else if (type == "blinker_r") {
               if (on) {
-                vehicle.model.getObjectByName("Blinker_R").visible = true;
+                vehicle.parts.Blinker_R.visible = true;
                 bloom_r.visible = true;
                 bloom_r.material.opacity = 0.4;
                 bloom_r.material.color.setHex(0xffffff);
               } else {
-                vehicle.model.getObjectByName("Blinker_R").visible = false;
+                vehicle.parts.Blinker_R.visible = false;
               }
             }
             if (on) {
@@ -563,7 +640,7 @@
                 if (child.name.startsWith("Instrument_")) child.visible = on;
               });
             } else {
-              vehicle.model.getObjectByName("Instrument_" + instrument).visible = on;
+              vehicle.parts["Instrument_" + instrument].visible = on;
             }
           }
         },
@@ -601,26 +678,31 @@
               });
               scene.add(map);
               renderer.render(scene, camera);
+              const box = new THREE.Box3();
+              const v1 = new THREE.Vector3();
+              const v2 = new THREE.Vector3();
+              const v3 = new THREE.Vector3(2, 2, 2);
               const collisionMap = map.getObjectByName("CollisionMap");
               collisionMap.traverse(child => {
                 if (child.isMesh) {
-                  const rotation = new THREE.Vector3(child.rotation.x, child.rotation.y, child.rotation.z);
+                  v1.set(child.rotation.x, child.rotation.y, child.rotation.z);
+                  v2.set(0, 0, 0);
                   child.rotation.set(0, 0, 0);
-                  const box = new THREE.Box3().setFromObject(child);
-                  const size = box.getSize(new THREE.Vector3());
+                  box.setFromObject(child);
+                  const size = box.getSize(v2);
                   const shape = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
                   const body = new CANNON.Body({ mass: 0, shape: shape, material: groundMaterial });
                   world.add(body);
-                  child.rotation.set(rotation.x, rotation.y, rotation.z);
+                  child.rotation.set(v1.x, v1.y, v1.z);
                   box.setFromObject(child);
-                  const worldPosition = box.min.add(box.max).divide(new THREE.Vector3(2, 2, 2));
+                  const worldPosition = box.min.add(box.max).divide(v3);
                   body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
                   body.quaternion.copy(child.quaternion);
                 }
               });
               map.remove(collisionMap);
-              sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("0.png"), side: THREE.BackSide }));
-              sky.rotation.y = -0.3;
+              sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ color: 0xffffff, map: new THREE.TextureLoader().load("images/skies/1.png"), side: THREE.BackSide }));
+              sky.rotation.y = 2.2;
               scene.add(sky);
               utils.game.start();
             });
@@ -639,24 +721,24 @@
               if (newView == 0) {
                 vehicle.physics.lastRotation = 0;
                 camera.rotation.set(-0.1, Math.PI, 0);
-                vehicle.model.getObjectByName("Interior").visible = true;
-                vehicle.model.getObjectByName("Exterior").visible = false;
-                vehicle.model.getObjectByName("Exterior_View").visible = false;
-                vehicle.model.getObjectByName("Mirror_L").material.map = utils.vehicle.mirrorRenderTarget.texture;
-                vehicle.model.getObjectByName("Mirror_L").material.envMap = null;
-                vehicle.model.getObjectByName("Mirror_L").material.needsUpdate = true;
-                vehicle.model.getObjectByName("Windows").material.opacity = 0.3;
-                vehicle.model.getObjectByName("Windows").material.depthWrite = false;
+                vehicle.parts.Interior.visible = true;
+                vehicle.parts.Exterior.visible = false;
+                vehicle.parts.Exterior_View.visible = false;
+                vehicle.parts.Mirror_L.material.map = utils.vehicle.mirrorRenderTarget.texture;
+                vehicle.parts.Mirror_L.material.envMap = null;
+                vehicle.parts.Mirror_L.material.needsUpdate = true;
+                vehicle.parts.Windows.material.opacity = 0.3;
+                vehicle.parts.Windows.material.depthWrite = false;
                 PointerControls.isLocked = true;
               } else {
-                vehicle.model.getObjectByName("Interior").visible = false;
-                vehicle.model.getObjectByName("Exterior").visible = true;
-                vehicle.model.getObjectByName("Exterior_View").visible = true;
-                vehicle.model.getObjectByName("Mirror_L").material.map = null;
-                vehicle.model.getObjectByName("Mirror_L").material.envMap = utils.vehicle.envMap;
-                vehicle.model.getObjectByName("Mirror_L").material.needsUpdate = true;
-                vehicle.model.getObjectByName("Windows").material.opacity = 0.7;
-                vehicle.model.getObjectByName("Windows").material.depthWrite = true;
+                vehicle.parts.Interior.visible = false;
+                vehicle.parts.Exterior.visible = true;
+                vehicle.parts.Exterior_View.visible = true;
+                vehicle.parts.Mirror_L.material.map = null;
+                vehicle.parts.Mirror_L.material.envMap = utils.vehicle.envMap;
+                vehicle.parts.Mirror_L.material.needsUpdate = true;
+                vehicle.parts.Windows.material.opacity = 0.7;
+                vehicle.parts.Windows.material.depthWrite = true;
                 PointerControls.isLocked = false;
               }
               vehicle.currentView = newView;
@@ -683,11 +765,11 @@
               if (vehicle.physics.blinker == "blinker_l") {
                 utils.vehicle.setLights(false, "blinker_l");
                 utils.vehicle.setInstruments(false, "Blinker");
-                vehicle.model.getObjectByName("Lever_L").rotation.x = 0;
+                vehicle.parts.Lever_L.rotation.x = 0;
                 vehicle.physics.blinker = false;
               } else {
                 vehicle.physics.blinker = "blinker_l";
-                vehicle.model.getObjectByName("Lever_L").rotation.x = -0.3;
+                vehicle.parts.Lever_L.rotation.x = -0.3;
               }
             },
             rightBlinker: function() {
@@ -696,17 +778,17 @@
               if (vehicle.physics.blinker == "blinker_r") {
                 utils.vehicle.setLights(false, "blinker_r");
                 utils.vehicle.setInstruments(false, "Blinker");
-                vehicle.model.getObjectByName("Lever_L").rotation.x = 0;
+                vehicle.parts.Lever_L.rotation.x = 0;
                 vehicle.physics.blinker = false;
               } else {
                 vehicle.physics.blinker = "blinker_r";
-                vehicle.model.getObjectByName("Lever_L").rotation.x = 0.3;
+                vehicle.parts.Lever_L.rotation.x = 0.3;
               }
             },
             stopBlinker: function() {
               utils.vehicle.setLights(false, vehicle.physics.blinker);
               utils.vehicle.setInstruments(false, "Blinker");
-              vehicle.model.getObjectByName("Lever_L").rotation.x = 0;
+              vehicle.parts.Lever_L.rotation.x = 0;
               vehicle.physics.blinker = false;
             },
             shift: function(gear, direction = null) {
@@ -727,23 +809,63 @@
               }
               if (gear == "drive") {
                 vehicle.physics.gear = "drive";
-                vehicle.model.getObjectByName("Shifter").rotation.x = 0;
+                vehicle.parts.Shifter.rotation.x = 0;
                 utils.vehicle.setLights(false, "reverse");
               } else if (gear == "reverse") {
                 vehicle.physics.gear = "reverse";
-                vehicle.model.getObjectByName("Shifter").rotation.x = 0.2;
+                vehicle.parts.Shifter.rotation.x = 0.2;
                 utils.vehicle.setLights(true, "reverse");
               } else if (gear == "park") {
                 if (vehicle.speed < 1) {
                   vehicle.physics.gear = "park";
-                  vehicle.model.getObjectByName("Shifter").rotation.x = 0.4;
+                  vehicle.parts.Shifter.rotation.x = 0.4;
                   utils.vehicle.setLights(false, "reverse");
                 }
               }
             }
           }
+        },
+        ui: {
+          ctx: null,
+          initialize: function() {
+            const canvas = document.querySelector(".ui");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            utils.ui.ctx = canvas.getContext("2d");
+          },
+          update: function(time) {
+            const ctx = utils.ui.ctx;
+            const timeLeft = (maxTime * 1000) - (time - startTime);
+            const minutesLeft = timeLeft / 60000;
+            const secondsLeft = ("." + minutesLeft.toString().split(".")[1]) * 60;
+            const formattedTime = `${Math.floor(minutesLeft)}:${("0" + Math.floor(secondsLeft)).slice(-2)}`;
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            ctx.beginPath();
+            if (vehicle.currentView == 0) {
+              ctx.fillStyle = "#ffffff";
+              ctx.arc(window.innerWidth / 2, window.innerHeight / 2, 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.arc(90, window.innerHeight - 90, 80, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowColor = "#000000";
+            ctx.shadowBlur = 1;
+            ctx.textAlign = "center";
+            ctx.font = "30px Toxigenesis";
+            ctx.fillText(Math.round(vehicle.speed * 2.236936), 90, window.innerHeight - 86);
+            ctx.font = "12px Toxigenesis";
+            ctx.fillText("mph", 90, window.innerHeight - 74);
+            ctx.fillText(gear + 1, 90, window.innerHeight - 58);
+            ctx.font = "50px Toxigenesis";
+            ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10);
+            ctx.restore();
+          }
         }
       };
+
+      utils.ui.initialize();
 
       const groundMaterial = new CANNON.Material("groundMaterial");
       const wheelMaterial = new CANNON.Material("wheelMaterial");
