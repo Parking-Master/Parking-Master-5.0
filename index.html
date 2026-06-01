@@ -23,11 +23,12 @@
     </style>
   </head>
   <body>
-    <script src="three.js"></script>
-    <script src="GLTFLoader.js"></script>
-    <script src="DecalGeometry.js"></script>
-    <script src="cannon.js"></script>
-    <script src="PointerLockControls.js"></script>
+    <script src="scripts/three.js"></script>
+    <script src="scripts/GLTFLoader.js"></script>
+    <script src="scripts/DecalGeometry.js"></script>
+    <script src="scripts/cannon.js"></script>
+    <script src="scripts/PointerLockControls.js"></script>
+    <script src="scripts/particles.js"></script>
     <canvas class="ui"></canvas>
     <script>
       function generateUUID() {
@@ -104,6 +105,7 @@
         utils.vehicle.updateControls();
         utils.vehicle.updateEffects();
         utils.ui.update(time);
+        particles.update();
 
         const spawnFactor = Math.floor(Math.random() * 100);
         if (spawnFactor <= 10) {
@@ -138,6 +140,14 @@
               object.geometry.dispose();
               object.material.dispose();
               delete objects[id];
+            } else if (object.objectType == "backupCameraOn") {
+              object.material.map = utils.vehicle.backupRenderTarget.texture;
+              utils.vehicle.setInstruments(true, "Backup_Camera");
+              vehicle.parts.Control_Screen.material.color.setHex(0xffffff);
+              delete objects[id];
+            } else if (object.objectType == "backupCameraOff") {
+              vehicle.parts.Control_Screen.material.map = vehicle.parts.Control_Screen.material.mainMap;
+              vehicle.parts.Control_Screen.material.color.setHex(0xffffff);
             }
           }
         }
@@ -151,14 +161,17 @@
           console.log('FPS:', fps.toFixed(1));
         }
 
-        if (vehicle) {
-          if (frameCount % 3 == 0 && vehicle.speed > 0.2) {
-            vehicle.model.visible = false;
-            renderer.setRenderTarget(utils.vehicle.mirrorRenderTarget);
-            renderer.render(scene, vehicle.parts.Mirror_L_Camera);
-            renderer.setRenderTarget(null);
-            vehicle.model.visible = true;
+        if ((vehicle && vehicle.currentView == 0 && frameCount % 3 == 0 && vehicle.speed > 0.1) || utils.vehicle.backupRenderTarget.initialUpdate) {
+          utils.vehicle.backupRenderTarget.initialUpdate = false;
+          vehicle.model.visible = false;
+          renderer.setRenderTarget(utils.vehicle.mirrorRenderTarget);
+          renderer.render(scene, vehicle.parts.Mirror_L_Camera);
+          if (vehicle.physics.gear == "reverse") {
+            renderer.setRenderTarget(utils.vehicle.backupRenderTarget);
+            renderer.render(scene, vehicle.parts.Backup_Camera);
           }
+          renderer.setRenderTarget(null);
+          vehicle.model.visible = true;
         }
 
         renderer.render(scene, camera);
@@ -170,20 +183,18 @@
       let propCars = [];
       let lastPropCarSpawn = null;
       let spawnedPropCars = [];
-      let vehicleBodies = [];
-      let vehicleMeshes = [];
       const world = new CANNON.World();
       world.gravity.set(0, -9.82, 0);
 
       let options = { carHeadingMaxIncrement: 11, carHeadingIncrement: 0 };
 
-      let chosenVehicle = "Toyota_RAV4";
+      let chosenVehicle = "Honda_Civic_Sport_Touring";
       const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5)];
       const eulers = [new THREE.Euler()];
-      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("/images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false })];
+      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false })];
       const objects = {};
       utils = {
-        autoDeleteObject: function(object, type, delay) {
+        scheduleObject: function(object, type, delay) {
           object.objectType = type;
           object.delay = delay;
           object.timestamp = Date.now();
@@ -322,7 +333,8 @@
           }
         },
         vehicle: {
-          mirrorRenderTarget: new THREE.WebGLRenderTarget(200, 200),
+          mirrorRenderTarget: new THREE.WebGLRenderTarget(128, 128),
+          backupRenderTarget: new THREE.WebGLRenderTarget(128, 128),
           envMap: null,
           lightsInUse: {
             "brake": false,
@@ -334,7 +346,7 @@
             vehicle = Object.assign(new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 }), utils.vehicles[chosenVehicle]);
             new THREE.TextureLoader().load("images/skies/1_envmap.png", function(texture) {
               utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
-              new THREE.GLTFLoader().load(chosenVehicle + ".glb", function(model) {
+              new THREE.GLTFLoader().load("models/cars/" + chosenVehicle + ".glb", function(model) {
                 vehicle.model = model.scene;
                 vehicle.model.traverse(child => {
                   vehicle.parts[child.name] = child;
@@ -369,6 +381,35 @@
                   wheel.body = wheelBody;
                   wheel.mesh = wheelMesh;
                 }
+                // new THREE.GLTFLoader().load("models/debris.glb", function(model) {
+                //   vehicle.debris = [];
+                //   model.scene.children.forEach(child => {
+                //     const body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)) });
+                //     const mesh = child.clone();
+                //     world.add(body);
+                //     scene.add(mesh);
+                //     body.position.y = 10;
+                //     vehicle.debris.push({ body: body, mesh: mesh });
+                //   });
+                // });
+                // vehicle.body.addEventListener("collide", function(event) {
+                //   const worldHitPosition = event.contact.bi.position.clone();
+                //   worldHitPosition.vadd(event.contact.ri, worldHitPosition);
+                //   const power = event.contact.getImpactVelocityAlongNormal();
+                //   particles.dust(worldHitPosition, power);
+
+                //   if (power > 4) {
+                //     vehicle.debris.forEach(x=>{
+                //       x.body.position.copy(vehicle.body.position);
+                //       x.body.velocity.set(1, 1, 1);
+                //       x.body.angularVelocity.set(1, 1, 1);
+                //     });
+                //   }
+
+                //   // const rotation = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), event.contact.ni));
+                //   // const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(vehicle.parts.Exterior, new THREE.Vector3().copy(worldHitPosition), rotation, new THREE.Vector3(1, 1, 1)), new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide}));
+                //   // vehicle.parts.Exterior.add(decalMesh);
+                // });
                 vehicle.body.position.y = 1;
                 vehicle.addToWorld(world);
                 scene.add(vehicle.model);
@@ -376,6 +417,7 @@
                 utils.game.controls.stopBrake();
                 utils.vehicle.setLights(false);
                 utils.vehicle.setInstruments(false);
+                vehicle.parts.Control_Screen.material.mainMap = vehicle.parts.Control_Screen.material.map;
                 utils.map.initialize();
               });
             });
@@ -497,6 +539,11 @@
                 wheel.mesh.position.copy(wheel.body.position);
                 wheel.mesh.quaternion.copy(wheel.body.quaternion);
               }
+              // for (let i = 0; i < vehicle.debris.length; i++) {
+              //   const debris = vehicle.debris[i];
+              //   debris.mesh.position.copy(debris.body.position);
+              //   debris.mesh.quaternion.copy(debris.body.quaternion);
+              // }
               const shadowOffset = Math.abs(vehicle.mesh.rotation.y / 10);
               vehicle.shadow.position.set(vehicle.mesh.position.x + shadowOffset, 0, vehicle.mesh.position.z + shadowOffset);
               vehicle.shadow.rotation.z = vehicle.mesh.rotation.y - Math.PI / 2;
@@ -567,7 +614,7 @@
               const rotation = eulers[0].set(0, vehicle.mesh.rotation.y, 0);
               const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(map.getObjectByName("Mesh_2_6"), position, rotation, vectors[1]), materials[0]);
               scene.add(decalMesh);
-              utils.autoDeleteObject(decalMesh, "tireMarks", 5000);
+              utils.scheduleObject(decalMesh, "tireMarks", 5000);
             }
           },
           setLights: function(on, type = null) {
@@ -662,8 +709,17 @@
         },
         map: {
           initialize: function() {
-            new THREE.GLTFLoader().load("map.glb", function(model) {
+            new THREE.GLTFLoader().load("models/parking-lots/main.glb", function(model) {
               map = model.scene;
+              const cars = map.getObjectByName("PropCars").children;
+              for (let i = cars.length - 1; i >= 0; i--) {
+                const car = cars[i];
+                car.position.set(300, 0, 17);
+                car.rotation.set(-Math.PI / 2 - 0.05, 0, -Math.PI / 2);
+                car.scale.set(0.8, 0.8, 0.8);
+                scene.add(car);
+                propCars.push(car);
+              }
               map.traverse(child => {
                 child.castShadow = true;
                 child.receiveShadow = true;
@@ -729,6 +785,7 @@
                 vehicle.parts.Mirror_L.material.needsUpdate = true;
                 vehicle.parts.Windows.material.opacity = 0.3;
                 vehicle.parts.Windows.material.depthWrite = false;
+                utils.vehicle.backupRenderTarget.initialUpdate = true;
                 PointerControls.isLocked = true;
               } else {
                 vehicle.parts.Interior.visible = false;
@@ -807,19 +864,27 @@
                   }
                 }
               }
+              if (gear == vehicle.physics.gear) return;
+              if (vehicle.physics.gear == "reverse") {
+                utils.vehicle.setLights(false, "reverse");
+                utils.vehicle.setInstruments(false, "Backup_Camera");
+                vehicle.parts.Control_Screen.material.color.setHex(0x000000);
+                utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOff", 500);
+              }
               if (gear == "drive") {
                 vehicle.physics.gear = "drive";
                 vehicle.parts.Shifter.rotation.x = 0;
-                utils.vehicle.setLights(false, "reverse");
               } else if (gear == "reverse") {
                 vehicle.physics.gear = "reverse";
                 vehicle.parts.Shifter.rotation.x = 0.2;
                 utils.vehicle.setLights(true, "reverse");
+                utils.vehicle.backupRenderTarget.initialUpdate = true;
+                vehicle.parts.Control_Screen.material.color.setHex(0x000000);
+                utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOn", 500);
               } else if (gear == "park") {
                 if (vehicle.speed < 1) {
                   vehicle.physics.gear = "park";
                   vehicle.parts.Shifter.rotation.x = 0.4;
-                  utils.vehicle.setLights(false, "reverse");
                 }
               }
             }
@@ -901,18 +966,6 @@
         keyStates[event.key] = false;
         if (event.key == "b") utils.game.controls.stopBrake();
         if (event.key == "ArrowUp") utils.game.controls.stopThrottle();
-      });
-
-      new THREE.GLTFLoader().load("propcars.glb", function(model) {
-        const cars = model.scene.getObjectByName("Wrapper").children;
-        for (let i = cars.length - 1; i >= 0; i--) {
-          const car = cars[i];
-          car.position.set(300, 0, 17);
-          car.rotation.set(-Math.PI / 2 - 0.05, 0, -Math.PI / 2);
-          car.scale.set(0.8, 0.8, 0.8);
-          scene.add(car);
-          propCars.push(car);
-        }
       });
 
       utils.vehicle.initialize();
