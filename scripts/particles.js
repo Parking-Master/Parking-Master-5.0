@@ -36,7 +36,7 @@ let dustMaterial = new THREE.ShaderMaterial({
       float noise = texture2D(noiseTexture, noiseCoord).r * 0.5 + 0.5;
       
       float alpha = 0.15 * vLife * noise * (1.0 - dist * 2.0);
-      vec3 dustColor = vec3(0.48, 0.45, 0.4);
+      vec3 dustColor = vec3(0.7, 0.65, 0.6);
       gl_FragColor = vec4(dustColor, alpha);
     }`,
   transparent: true,

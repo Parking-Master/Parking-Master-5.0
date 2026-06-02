@@ -189,9 +189,9 @@
       let options = { carHeadingMaxIncrement: 11, carHeadingIncrement: 0 };
 
       let chosenVehicle = "Honda_Civic_Sport_Touring";
-      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5)];
+      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
       const eulers = [new THREE.Euler()];
-      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false })];
+      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
       const objects = {};
       utils = {
         scheduleObject: function(object, type, delay) {
@@ -381,35 +381,43 @@
                   wheel.body = wheelBody;
                   wheel.mesh = wheelMesh;
                 }
-                // new THREE.GLTFLoader().load("models/debris.glb", function(model) {
-                //   vehicle.debris = [];
-                //   model.scene.children.forEach(child => {
-                //     const body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)) });
-                //     const mesh = child.clone();
-                //     world.add(body);
-                //     scene.add(mesh);
-                //     body.position.y = 10;
-                //     vehicle.debris.push({ body: body, mesh: mesh });
-                //   });
-                // });
-                // vehicle.body.addEventListener("collide", function(event) {
-                //   const worldHitPosition = event.contact.bi.position.clone();
-                //   worldHitPosition.vadd(event.contact.ri, worldHitPosition);
-                //   const power = event.contact.getImpactVelocityAlongNormal();
-                //   particles.dust(worldHitPosition, power);
+                vehicle.debris = [];
+                new THREE.GLTFLoader().load("models/debris.glb", function(model) {
+                  model.scene.children.forEach(child => {
+                    const body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)) });
+                    const mesh = child.clone();
+                    vehicle.debris.push({ body: body, mesh: mesh });
+                  });
+                });
+                let lastCrash = null;
+                vehicle.body.addEventListener("collide", function(event) {
+                  if (Date.now() - lastCrash < 500) return;
+                  lastCrash = Date.now();
+                  const worldHitPosition = event.contact.bi.position.clone();
+                  worldHitPosition.vadd(event.contact.ri, worldHitPosition);
+                  const power = event.contact.getImpactVelocityAlongNormal();
+                  if (power > 2) {
+                    particles.dust(worldHitPosition, Math.pow(power, 1.5) / 2);
+                    utils.vehicle.dentExterior(vehicle.parts.Exterior, new THREE.Vector3().copy(worldHitPosition), new THREE.Vector3().copy(event.contact.ni));
+                  }
+                  if (power > 8) {
+                    vehicle.parts.Windows.material.map = materials[1];
+                    vehicle.parts.Windows.material.emissive.setHex(0x555555);
+                    vehicle.parts.Windows.material.opacity = 1;
+                    if (vehicle.currentView == 0) particles.dust(camera.position, 1);
+                    const amountOfDebris = Math.floor(Math.random() * vehicle.debris.length) + 1;
+                    for (let i = 0; i < amountOfDebris; i++) {
+                      const debris = vehicle.debris[i];
+                      world.add(debris.body);
+                      scene.add(debris.mesh);
+                      debris.body.position.copy(worldHitPosition);
+                      debris.body.velocity.set(1, 1, 1);
+                      debris.body.angularVelocity.set(1, 1, 1);
+                    }
+                    utils.vehicle.setInstruments(true, "Airbag");
+                  }
+                });
 
-                //   if (power > 4) {
-                //     vehicle.debris.forEach(x=>{
-                //       x.body.position.copy(vehicle.body.position);
-                //       x.body.velocity.set(1, 1, 1);
-                //       x.body.angularVelocity.set(1, 1, 1);
-                //     });
-                //   }
-
-                //   // const rotation = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), event.contact.ni));
-                //   // const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(vehicle.parts.Exterior, new THREE.Vector3().copy(worldHitPosition), rotation, new THREE.Vector3(1, 1, 1)), new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide}));
-                //   // vehicle.parts.Exterior.add(decalMesh);
-                // });
                 vehicle.body.position.y = 1;
                 vehicle.addToWorld(world);
                 scene.add(vehicle.model);
@@ -539,11 +547,11 @@
                 wheel.mesh.position.copy(wheel.body.position);
                 wheel.mesh.quaternion.copy(wheel.body.quaternion);
               }
-              // for (let i = 0; i < vehicle.debris.length; i++) {
-              //   const debris = vehicle.debris[i];
-              //   debris.mesh.position.copy(debris.body.position);
-              //   debris.mesh.quaternion.copy(debris.body.quaternion);
-              // }
+              for (let i = 0; i < vehicle.debris.length; i++) {
+                const debris = vehicle.debris[i];
+                debris.mesh.position.copy(debris.body.position);
+                debris.mesh.quaternion.copy(debris.body.quaternion);
+              }
               const shadowOffset = Math.abs(vehicle.mesh.rotation.y / 10);
               vehicle.shadow.position.set(vehicle.mesh.position.x + shadowOffset, 0, vehicle.mesh.position.z + shadowOffset);
               vehicle.shadow.rotation.z = vehicle.mesh.rotation.y - Math.PI / 2;
@@ -689,6 +697,23 @@
             } else {
               vehicle.parts["Instrument_" + instrument].visible = on;
             }
+          },
+          dentExterior: function(exterior, point, normal) {
+            exterior.geometry.computeVertexNormals();
+            const localPoint = exterior.worldToLocal(vectors[2].copy(point));
+            const localNormal = vectors[3].copy(normal).transformDirection(exterior.matrixWorld).normalize();
+            const vertex = vectors[4].set(0, 0, 0);
+            for (let i = 0; i < exterior.geometry.attributes.position.count; i++) {
+              vertex.fromBufferAttribute(exterior.geometry.attributes.position, i);
+              const dist = vertex.distanceTo(localPoint);
+              if (dist > 1.6) continue;
+              let offset = 1 - dist / 1.6;
+              vertex.addScaledVector(localNormal, -(0.1 - (Math.random() / 10)) * offset);
+              exterior.geometry.attributes.position.setXYZ(i, vertex.x, vertex.y, vertex.z);
+            }
+            exterior.geometry.attributes.position.needsUpdate = true;
+            exterior.geometry.computeVertexNormals();
+            exterior.geometry.computeBoundingSphere();
           }
         },
         physics: {
@@ -728,8 +753,10 @@
                   child.material.roughness = 1;
                 }
                 if (child.name == "Plane009" || child.name == "vegetation_long_grass_04_0001" || child.name == "Mesh_2_6" || child.name == "Plane") {
-                  child.material.map.anisotropy = 4;
-                  child.material.map.needsUpdate = true;
+                  if (child.material.map) {
+                    child.material.map.anisotropy = 4;
+                    child.material.map.needsUpdate = true;
+                  }
                 }
               });
               scene.add(map);
