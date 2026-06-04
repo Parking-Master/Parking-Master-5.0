@@ -113,6 +113,11 @@
         utils.ui.update(time);
         particles.update();
 
+        for (let i = 0; i < physicsBodies.length; i++) {
+          physicsBodies[i].mesh.position.copy(physicsBodies[i].body.position);
+          physicsBodies[i].mesh.quaternion.copy(physicsBodies[i].body.quaternion);
+        }
+
         const spawnFactor = Math.floor(Math.random() * 100);
         if (spawnFactor <= 10) {
           const newPropCar = propCars[Math.floor(Math.random() * propCars.length)];
@@ -193,7 +198,8 @@
       let engine = 0;
       let timeOfBrake = null;
       let timeOfEngine = null;
-      let chosenVehicle = "Honda_Civic_Sport_Touring";
+      let physicsBodies = [];
+      let chosenVehicle = "Toyota_RAV4";
 
       const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3()];
       const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
@@ -393,7 +399,11 @@
                 }
                 vehicle.debris = [];
                 new THREE.GLTFLoader().load("models/debris.glb", function(model) {
-                  model.scene.children.forEach(child => vehicle.debris.push({ body: new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)) }), mesh: child }));
+                  model.scene.children.forEach(child => {
+                    const entry = { body: new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.2, 0.2, 0.2)) }), mesh: child };
+                    physicsBodies.push(entry);
+                    vehicle.debris.push(entry);
+                  });
                 });
                 vehicle.body.addEventListener("collide", function(event) {
                   const time = Date.now();
@@ -418,7 +428,7 @@
                       world.add(debris.body);
                       scene.add(debris.mesh);
                       debris.body.position.copy(worldHitPosition);
-                      debris.body.velocity.set(1, 1, 1);
+                      debris.body.velocity.set(1, 5, 1);
                       debris.body.angularVelocity.set(1, 1, 1);
                     }
                     utils.vehicle.setInstruments(true, "Airbag");
@@ -558,11 +568,6 @@
                 wheel.body.quaternion.copy(wheel.worldTransform.quaternion);
                 wheel.mesh.position.copy(wheel.body.position);
                 wheel.mesh.quaternion.copy(wheel.body.quaternion);
-              }
-              for (let i = 0; i < vehicle.debris.length; i++) {
-                const debris = vehicle.debris[i];
-                debris.mesh.position.copy(debris.body.position);
-                debris.mesh.quaternion.copy(debris.body.quaternion);
               }
               const shadowOffset = Math.abs(vehicle.mesh.rotation.y / 10);
               vehicle.shadow.position.set(vehicle.mesh.position.x + shadowOffset, 0, vehicle.mesh.position.z + shadowOffset);
@@ -748,9 +753,11 @@
           }
         },
         map: {
+          trafficCone: null,
           initialize: function() {
             new THREE.GLTFLoader().load("models/parking-lots/main.glb", function(model) {
               map = model.scene;
+              utils.map.trafficCone = map.getObjectByName("Traffic_Cone");
               const cars = map.getObjectByName("PropCars").children;
               for (let i = cars.length - 1; i >= 0; i--) {
                 const car = cars[i];
@@ -767,7 +774,7 @@
                   child.material.metalness = 0.1;
                   child.material.roughness = 1;
                 }
-                if (child.name == "Plane009" || child.name == "vegetation_long_grass_04_0001" || child.name == "Mesh_2_6" || child.name == "Plane") {
+                if (child.name == "Plane009" || child.name == "vegetation_long_grass_04_0001" || child.name == "Mesh_2_6" || child.name == "Plane" || child.name == "NurbsPath") {
                   if (child.material.map) {
                     child.material.map.anisotropy = 4;
                     child.material.map.needsUpdate = true;
@@ -775,7 +782,6 @@
                 }
               });
               scene.add(map);
-              renderer.render(scene, camera);
               const box = new THREE.Box3();
               const collisionMap = map.getObjectByName("CollisionMap");
               collisionMap.traverse(child => {
@@ -799,11 +805,29 @@
               scene.add(sky);
               utils.game.start();
             });
+          },
+          addTrafficCone: function(x, y, z) {
+            let trafficCone = null;
+            if (utils.map.trafficCone.used) {
+              trafficCone = utils.map.trafficCone.clone();
+            } else {
+              utils.map.trafficCone.used = true;
+              trafficCone = utils.map.trafficCone;
+            }
+            const body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.07, 0.225, 0.07)) });
+            body.position.set(x, y, z);
+            world.add(body);
+            scene.add(trafficCone);
+            const entry = { mesh: trafficCone, body: body };
+            physicsBodies.push(entry);
           }
         },
         game: {
           start: function() {
             renderer.shadowMap.needsUpdate = true;
+            for (let i = 0; i < 6; i++) {
+              utils.map.addTrafficCone(28, 1, 4 - (i * 2));
+            }
             utils.game.controls.switchView(0);
             animate();
           },
@@ -820,7 +844,8 @@
                 vehicle.parts.Mirror_L.material.map = utils.vehicle.mirrorRenderTarget.texture;
                 vehicle.parts.Mirror_L.material.envMap = null;
                 vehicle.parts.Mirror_L.material.needsUpdate = true;
-                vehicle.parts.Windows.material.opacity = 0.3;
+                vehicle.parts.Windows.material.opacity = 0.2;
+                vehicle.parts.Windows.material.color.b = 0.6;
                 vehicle.parts.Windows.material.depthWrite = false;
                 utils.vehicle.backupRenderTarget.initialUpdate = true;
                 PointerControls.isLocked = true;
@@ -832,6 +857,7 @@
                 vehicle.parts.Mirror_L.material.envMap = utils.vehicle.envMap;
                 vehicle.parts.Mirror_L.material.needsUpdate = true;
                 vehicle.parts.Windows.material.opacity = 0.7;
+                vehicle.parts.Windows.material.color.b = 0.14;
                 vehicle.parts.Windows.material.depthWrite = true;
                 PointerControls.isLocked = false;
               }
