@@ -29,6 +29,7 @@
     <script src="scripts/cannon.js"></script>
     <script src="scripts/PointerLockControls.js"></script>
     <script src="scripts/particles.js"></script>
+    <script src="scripts/sounds.js"></script>
     <canvas class="ui"></canvas>
     <script>
       function generateUUID() {
@@ -49,6 +50,7 @@
 
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
+      sounds.initialize();
       scene.add(camera);
 
       camera.rotation.order = "YXZ";
@@ -110,8 +112,9 @@
         utils.vehicle.updateLights(time);
         utils.vehicle.updateControls();
         utils.vehicle.updateEffects();
-        utils.ui.update(time);
+        if (frameCount % 2 == 0) utils.ui.update(time);
         particles.update();
+        sounds.update(time);
 
         for (let i = 0; i < physicsBodies.length; i++) {
           physicsBodies[i].mesh.position.copy(physicsBodies[i].body.position);
@@ -280,9 +283,10 @@
           },
           "Toyota_RAV4": {
             physics: {
+              maxSpeedMPH: 119,
               drivetrain: "fwd",
               brakes: "awb",
-              engineForce: 945,
+              engineForce: 700,
               wheelTurnRatio: 10,
               frontArea: 2.5,
               rearArea: 2.9,
@@ -412,6 +416,7 @@
                   const worldHitPosition = vectors[6].copy(event.contact.bi.position);
                   worldHitPosition.vadd(event.contact.ri, worldHitPosition);
                   const power = event.contact.getImpactVelocityAlongNormal();
+                  sounds.collision(power);
                   if (power > 2) {
                     utils.vehicle.cameraBob(power / 2);
                     particles.dust(worldHitPosition, Math.pow(power, 1.5) / 2);
@@ -463,7 +468,7 @@
               timeOfBrake = null;
               brake = 0;
             }
-            if (!vehicle.physics.throttle) {
+            if (!utils.data.throttle) {
               const brakeForce = Math.abs(vehicle.currentVehicleSpeedKmHour) < 0.5 ? 500 : brake;
               if (vehicle.speed < 0.15 && vehicle.speed > 0.02) {
                 vehicle.setBrake(10, 0);
@@ -521,11 +526,10 @@
             if (vehicle.rpm > (utils.data.currentTransmission == "drive" ? vehicle.physics.upshiftRPM : 1000) && utils.data.currentGear < vehicle.physics.gearRatios.length - 1) utils.data.currentGear++;
             if (vehicle.rpm < vehicle.physics.downshiftRPM && utils.data.currentGear > 0) utils.data.currentGear--;
             const ratio = vehicle.physics.gearRatios[utils.data.currentGear];
-            if (vehicle.physics.throttle) {
+            if (utils.data.throttle) {
               if (timeOfEngine == null) timeOfEngine = time;
               const engineTime = time - timeOfEngine;
               engine = 0.2 + Math.min(engineTime * deltaTime * 0.03, 0.8);
-
               const engineForce = engine * vehicle.physics.engineForce * ratio * (utils.data.currentTransmission == "drive" ? -1 : utils.data.currentTransmission == "reverse" ? 1 : 0);
               if (vehicle.physics.drivetrain == "fwd") {
                 vehicle.applyEngineForce(engineForce, 0);
@@ -549,6 +553,7 @@
               const velocity = vectors[5].copy(vehicle.chassisBody.velocity);
               const oldSpeed = vehicle.speed;
               vehicle.speed = velocity.length();
+              vehicle.speedMPH = vehicle.speed * 2.236936;
               vehicle.acceleration = (vehicle.speed - oldSpeed) * deltaTime;
               vehicle.rpm = (vehicle.speed / (2 * Math.PI * vehicle.physics.wheelPhysics.radius)) * 60 * vehicle.physics.gearRatios[utils.data.currentGear] * vehicle.physics.finalDriveRatio;
               const dragForce = 0.5 * 1.225 * 0.32 * utils.physics.aerodynamicArea() * vehicle.speed * vehicle.speed * utils.physics.engineBrakeForce(vehicle.speed);
@@ -643,6 +648,7 @@
               const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(map.getObjectByName("Mesh_2_6"), position, rotation, vectors[1]), materials[0]);
               scene.add(decalMesh);
               utils.scheduleObject(decalMesh, "tireMarks", 5000);
+              sounds.tireSqueak();
             }
           },
           setLights: function(on, type = null) {
@@ -864,7 +870,7 @@
               vehicle.currentView = newView;
             },
             brake: function() {
-              if (vehicle.physics.throttle) utils.game.controls.stopThrottle();
+              if (utils.data.throttle) utils.game.controls.stopThrottle();
               vehicle.physics.brake = true;
               utils.vehicle.setLights(true, "brake");
             },
@@ -874,10 +880,10 @@
             },
             throttle: function() {
               if (vehicle.physics.brake) utils.game.controls.stopBrake();
-              vehicle.physics.throttle = true;
+              utils.data.throttle = true;
             },
             stopThrottle: function() {
-              vehicle.physics.throttle = false;
+              utils.data.throttle = false;
             },
             leftBlinker: function() {
               utils.vehicle.setLights(false, "blinker_r");
@@ -980,7 +986,7 @@
             ctx.shadowBlur = 1;
             ctx.textAlign = "center";
             ctx.font = "30px Toxigenesis";
-            ctx.fillText(Math.round(vehicle.speed * 2.236936), 90, window.innerHeight - 86);
+            ctx.fillText(Math.round(vehicle.speedMPH), 90, window.innerHeight - 86);
             ctx.font = "12px Toxigenesis";
             ctx.fillText("mph", 90, window.innerHeight - 74);
             ctx.fillText(utils.data.currentGear + 1, 90, window.innerHeight - 58);
