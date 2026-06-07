@@ -56,40 +56,47 @@ function difference(a, b) {
 
 let lastSoundUpdate = null;
 let lastTireSqueak = null;
+let didBackupWarning = false;
 sounds = {
   initialize: function() {
     const listener = new THREE.AudioListener();
     scene.add(listener);
     camera.audioListener = listener;
+    sounds.library.cars = {
+      accelerate: loadSound(`sounds/cars/${chosenVehicle}/accelerate.mp3`),
+      accelerateInterior: loadSound(`sounds/cars/${chosenVehicle}/accelerate-interior.mp3`),
+      decelerate: loadSound(`sounds/cars/${chosenVehicle}/decelerate.mp3`),
+      decelerateInterior: loadSound(`sounds/cars/${chosenVehicle}/decelerate-interior.mp3`),
+      idle: loadSound(`sounds/cars/${chosenVehicle}/idle.mp3`),
+      rev: loadSound(`sounds/cars/${chosenVehicle}/rev.mp3`),
+      warningBackup: loadSound(`sounds/cars/${chosenVehicle}/warning-backup.mp3`),
+      ambience: loadSound("sounds/cars/ambience.mp3"),
+      ambienceInterior: loadSound("sounds/cars/ambience-interior.mp3"),
+      bump: loadSound("sounds/cars/bump.mp3"),
+      hit: loadSound("sounds/cars/hit.mp3"),
+      crash: loadSound("sounds/cars/crash.mp3"),
+      bumpInterior: loadSound("sounds/cars/bump-interior.mp3"),
+      hitInterior: loadSound("sounds/cars/hit-interior.mp3"),
+      crashInterior: loadSound("sounds/cars/crash-interior.mp3"),
+      tireSqueak: loadSound("sounds/cars/tire-squeak.mp3"),
+      blinker: loadSound("sounds/cars/blinker.mp3"),
+      controlClick: loadSound("sounds/cars/control-click.mp3"),
+      pedal: loadSound("sounds/cars/pedal.mp3"),
+    };
   },
   library: {
-    cars: {
-      Toyota_RAV4: {
-        accelerate: loadSound("/sounds/cars/Toyota_RAV4/accelerate.mp3"),
-        accelerateInterior: loadSound("/sounds/cars/Toyota_RAV4/accelerate-interior.mp3"),
-        decelerate: loadSound("/sounds/cars/Toyota_RAV4/decelerate.mp3"),
-        decelerateInterior: loadSound("/sounds/cars/Toyota_RAV4/decelerate-interior.mp3"),
-        idle: loadSound("/sounds/cars/Toyota_RAV4/idle.mp3"),
-        rev: loadSound("/sounds/cars/Toyota_RAV4/rev.mp3")
-      },
-      ambience: loadSound("/sounds/cars/ambience.mp3"),
-      ambienceInterior: loadSound("/sounds/cars/ambience-interior.mp3"),
-      bumpInterior: loadSound("/sounds/cars/bump-interior.mp3"),
-      hitInterior: loadSound("/sounds/cars/hit-interior.mp3"),
-      crashInterior: loadSound("/sounds/cars/crash-interior.mp3"),
-      tireSqueak: loadSound("/sounds/cars/tire-squeak.mp3"),
-    }
+    cars: null
   },
   update: function(time) {
     let accelerateSound = null;
     let decelerateSound = null;
-    const idleSound = sounds.library.cars[chosenVehicle].idle;
+    const idleSound = sounds.library.cars.idle;
     if (vehicle.currentView == 0) {
-      accelerateSound = sounds.library.cars[chosenVehicle].accelerateInterior;
-      decelerateSound = sounds.library.cars[chosenVehicle].decelerateInterior;
+      accelerateSound = sounds.library.cars.accelerateInterior;
+      decelerateSound = sounds.library.cars.decelerateInterior;
     } else {
-      accelerateSound = sounds.library.cars[chosenVehicle].accelerate;
-      decelerateSound = sounds.library.cars[chosenVehicle].decelerate;
+      accelerateSound = sounds.library.cars.accelerate;
+      decelerateSound = sounds.library.cars.decelerate;
     }
     if (utils.data.throttle) {
       if (decelerateSound.playing) decelerateSound.pause();
@@ -104,8 +111,8 @@ sounds = {
           accelerateSound.currentTime = speedToSoundTime;
           accelerateSound.play();
           if (difference(speedRatio, soundRatio) > 0.02) {
-            sounds.library.cars[chosenVehicle].rev.currentTime = 0;
-            sounds.library.cars[chosenVehicle].rev.play();
+            sounds.library.cars.rev.currentTime = 0;
+            sounds.library.cars.rev.play();
           }
         }
       }
@@ -117,31 +124,39 @@ sounds = {
       }
     }
     if (!idleSound.playing) idleSound.currentTime = 0, idleSound.play();
-    sounds.library.cars[chosenVehicle].idle.gain.gain.value = Math.max(1 - (vehicle.speedMPH / vehicle.physics.maxSpeedMPH * 5), 0);
+    sounds.library.cars.idle.gain.gain.value = Math.max(1 - (vehicle.speedMPH / vehicle.physics.maxSpeedMPH * 5), 0);
     if (vehicle.currentView == 0) {
-      if (sounds.library.cars[chosenVehicle].accelerate.playing) {
-        sounds.library.cars[chosenVehicle].accelerate.pause();
-        sounds.library.cars[chosenVehicle].accelerateInterior.currentTime = sounds.library.cars[chosenVehicle].accelerate.currentTime;
-        sounds.library.cars[chosenVehicle].accelerateInterior.play();
+      if (sounds.library.cars.accelerate.playing) {
+        sounds.library.cars.accelerate.pause();
+        sounds.library.cars.accelerateInterior.currentTime = sounds.library.cars.accelerate.currentTime;
+        sounds.library.cars.accelerateInterior.play();
       }
-      if (sounds.library.cars[chosenVehicle].decelerate.playing) {
-        sounds.library.cars[chosenVehicle].decelerate.pause();
-        sounds.library.cars[chosenVehicle].decelerateInterior.currentTime = sounds.library.cars[chosenVehicle].decelerate.currentTime;
-        sounds.library.cars[chosenVehicle].decelerateInterior.play();
+      if (sounds.library.cars.decelerate.playing) {
+        sounds.library.cars.decelerate.pause();
+        sounds.library.cars.decelerateInterior.currentTime = sounds.library.cars.decelerate.currentTime;
+        sounds.library.cars.decelerateInterior.play();
       }
-      if (!sounds.library.cars.ambienceInterior.playing) sounds.library.cars.ambience.pause(), sounds.library.cars.ambienceInterior.currentTime = 0, sounds.library.cars.ambienceInterior.play();
+      if (!sounds.library.cars.ambienceInterior.playing) sounds.library.cars.ambience.pause(), sounds.library.cars.ambienceInterior.currentTime = 0, sounds.library.cars.ambienceInterior.loop = true, sounds.library.cars.ambienceInterior.play();
     } else {
-      if (sounds.library.cars[chosenVehicle].accelerateInterior.playing) {
-        sounds.library.cars[chosenVehicle].accelerateInterior.pause();
-        sounds.library.cars[chosenVehicle].accelerate.currentTime = sounds.library.cars[chosenVehicle].accelerateInterior.currentTime;
-        sounds.library.cars[chosenVehicle].accelerate.play();
+      if (sounds.library.cars.accelerateInterior.playing) {
+        sounds.library.cars.accelerateInterior.pause();
+        sounds.library.cars.accelerate.currentTime = sounds.library.cars.accelerateInterior.currentTime;
+        sounds.library.cars.accelerate.play();
       }
-      if (sounds.library.cars[chosenVehicle].decelerateInterior.playing) {
-        sounds.library.cars[chosenVehicle].decelerateInterior.pause();
-        sounds.library.cars[chosenVehicle].decelerate.currentTime = sounds.library.cars[chosenVehicle].decelerateInterior.currentTime;
-        sounds.library.cars[chosenVehicle].decelerate.play();
+      if (sounds.library.cars.decelerateInterior.playing) {
+        sounds.library.cars.decelerateInterior.pause();
+        sounds.library.cars.decelerate.currentTime = sounds.library.cars.decelerateInterior.currentTime;
+        sounds.library.cars.decelerate.play();
       }
-      if (sounds.library.cars.ambienceInterior.playing) sounds.library.cars.ambienceInterior.pause(), sounds.library.cars.ambience.currentTime = 0, sounds.library.cars.ambience.play();
+      if (sounds.library.cars.ambienceInterior.playing) sounds.library.cars.ambienceInterior.pause(), sounds.library.cars.ambience.currentTime = 0, sounds.library.cars.ambience.loop = true, sounds.library.cars.ambience.play();
+    }
+    if (utils.data.currentTransmission == "reverse" && vehicle.speedMPH > 10) {
+      if (!didBackupWarning) {
+        didBackupWarning = true;
+        if (vehicle.currentView == 0 && !sounds.library.cars.warningBackup.playing) sounds.library.cars.warningBackup.currentTime = 0, sounds.library.cars.warningBackup.play();
+      }
+    } else {
+      didBackupWarning = false;
     }
   },
   collision: function(power) {
@@ -176,5 +191,17 @@ sounds = {
       sounds.library.cars.tireSqueak.currentTime = 0;
       sounds.library.cars.tireSqueak.play();
     }
+  },
+  warningBackup: function() {
+    if (vehicle.currentView == 0 && !sounds.library.cars.warningBackup.playing) sounds.library.cars.warningBackup.currentTime = 0, sounds.library.cars.warningBackup.play();
+  },
+  blinker: function() {
+    if (vehicle.currentView == 0 && !sounds.library.cars.blinker.playing) sounds.library.cars.blinker.currentTime = 0, sounds.library.cars.blinker.play();
+  },
+  controlClick: function() {
+    if (vehicle.currentView == 0 && !sounds.library.cars.controlClick.playing) sounds.library.cars.controlClick.currentTime = 0, sounds.library.cars.controlClick.play();
+  },
+  pedal: function() {
+    if (vehicle.currentView == 0 && !sounds.library.cars.pedal.playing) sounds.library.cars.pedal.currentTime = 0, sounds.library.cars.pedal.play();
   }
 };

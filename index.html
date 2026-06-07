@@ -50,7 +50,6 @@
 
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
-      sounds.initialize();
       scene.add(camera);
 
       camera.rotation.order = "YXZ";
@@ -94,6 +93,24 @@
       window.addEventListener("resize", onWindowResize);
       onWindowResize();
 
+      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3()];
+      const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
+      const quaternions = [new CANNON.Quaternion()];
+      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
+      const objects = {};
+
+      let chosenVehicle = "Toyota_RAV4";
+      let keyStates = {};
+      let vehicle = null;
+      let propCars = [];
+      let lastPropCarSpawn = null;
+      let spawnedPropCars = [];
+      let brake = 0;
+      let engine = 0;
+      let physicsBodies = [];
+
+      sounds.initialize();
+
       let startTime = Date.now();
       let maxTime = 120;
       let frameCount = 0;
@@ -112,9 +129,11 @@
         utils.vehicle.updateLights(time);
         utils.vehicle.updateControls();
         utils.vehicle.updateEffects();
-        if (frameCount % 2 == 0) utils.ui.update(time);
         particles.update();
-        sounds.update(time);
+        if (frameCount % 2 == 0) {
+          utils.ui.update(time);
+          sounds.update(time);
+        }
 
         for (let i = 0; i < physicsBodies.length; i++) {
           physicsBodies[i].mesh.position.copy(physicsBodies[i].body.position);
@@ -158,6 +177,7 @@
               object.material.map = utils.vehicle.backupRenderTarget.texture;
               utils.vehicle.setInstruments(true, "Backup_Camera");
               vehicle.parts.Control_Screen.material.color.setHex(0xffffff);
+              sounds.warningBackup();
               delete objects[id];
             } else if (object.objectType == "backupCameraOff") {
               vehicle.parts.Control_Screen.material.map = vehicle.parts.Control_Screen.material.mainMap;
@@ -192,23 +212,6 @@
         requestAnimationFrame(animate);
       }
 
-      let keyStates = {};
-      let vehicle = null;
-      let propCars = [];
-      let lastPropCarSpawn = null;
-      let spawnedPropCars = [];
-      let brake = 0;
-      let engine = 0;
-      let timeOfBrake = null;
-      let timeOfEngine = null;
-      let physicsBodies = [];
-      let chosenVehicle = "Toyota_RAV4";
-
-      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3()];
-      const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
-      const quaternions = [new CANNON.Quaternion()];
-      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
-      const objects = {};
       utils = {
         scheduleObject: function(object, type, delay) {
           object.objectType = type;
@@ -226,13 +229,17 @@
           lastBlinker: null,
           autoBlinker: false,
           lastCrash: null,
+          lastThrottle: null,
           carHeadingIncrement: 0,
           carHeadingMaxIncrement: 11,
           lastVehicleRotationY: 0,
+          timeOfBrake: null,
+          timeOfGas: null
         },
         vehicles: {
           "Honda_Civic_Sport_Touring": {
             physics: {
+              maxSpeedMPH: 140,
               drivetrain: "fwd",
               brakes: "awb",
               engineForce: 1600,
@@ -461,11 +468,11 @@
             vehicle.setBrake(0, 2);
             vehicle.setBrake(0, 3);
             if (vehicle.physics.brake) {
-              if (timeOfBrake == null) timeOfBrake = time;
-              const brakeTime = time - timeOfBrake;
+              if (utils.data.timeOfBrake == null) utils.data.timeOfBrake = time;
+              const brakeTime = time - utils.data.timeOfBrake;
               brake = brakeTime < 700 ? 100 : 100 + Math.min((brakeTime - 700) * deltaTime * 20, 600);
             } else {
-              timeOfBrake = null;
+              utils.data.timeOfBrake = null;
               brake = 0;
             }
             if (!utils.data.throttle) {
@@ -527,8 +534,9 @@
             if (vehicle.rpm < vehicle.physics.downshiftRPM && utils.data.currentGear > 0) utils.data.currentGear--;
             const ratio = vehicle.physics.gearRatios[utils.data.currentGear];
             if (utils.data.throttle) {
-              if (timeOfEngine == null) timeOfEngine = time;
-              const engineTime = time - timeOfEngine;
+              utils.data.lastThrottle = time;
+              if (utils.data.timeOfGas == null) utils.data.timeOfGas = time;
+              const engineTime = time - utils.data.timeOfGas;
               engine = 0.2 + Math.min(engineTime * deltaTime * 0.03, 0.8);
               const engineForce = engine * vehicle.physics.engineForce * ratio * (utils.data.currentTransmission == "drive" ? -1 : utils.data.currentTransmission == "reverse" ? 1 : 0);
               if (vehicle.physics.drivetrain == "fwd") {
@@ -544,7 +552,7 @@
                 vehicle.applyEngineForce(engineForce, 3);
               }
             } else {
-              timeOfEngine = null;
+              utils.data.timeOfGas = null;
               engine = 0;
             }
           },
@@ -591,10 +599,11 @@
               camera.translateX(view[0] + offsetX);
               camera.translateY(view[1]);
               camera.translateZ(view[2] + offsetZ);
-
               camera.rotation.copy(oldRotation);
               camera.rotation.y += vehicle.mesh.rotation.y - utils.data.lastVehicleRotationY;
               utils.data.lastVehicleRotationY = vehicle.mesh.rotation.y;
+              camera.near = 0.01;
+              camera.updateProjectionMatrix();
             } else {
               camera.position.copy(vehicle.mesh.position);
               camera.rotation.set(0, vehicle.mesh.rotation.y, 0);
@@ -604,6 +613,8 @@
               camera.rotateX(view[3]);
               camera.rotateY(view[4]);
               camera.rotateZ(view[5]);
+              camera.near = 0.1;
+              camera.updateProjectionMatrix();
             }
           },
           updateLights: function(time) {
@@ -616,6 +627,7 @@
                 } else {
                   utils.vehicle.setLights(true, utils.data.blinker);
                   utils.vehicle.setInstruments(true, "Blinker");
+                  sounds.blinker();
                 }
               }
             }
@@ -624,7 +636,7 @@
             for (controlName in vehicle.controls) {
               const control = vehicle.controls[controlName];
               const cameraRotation = vehicle.mesh.rotation.y - camera.rotation.y;
-              const preRotation = cameraRotation  - (cameraRotation > Math.PI ? 6.2 : 0);
+              const preRotation = cameraRotation - (cameraRotation > Math.PI ? 6.2 : 0);
               const finalRotation = preRotation < -Math.PI ? preRotation + Math.PI * 2 : preRotation;
               if (finalRotation < control.bounds[0] && finalRotation > control.bounds[1] && camera.rotation.x < control.bounds[2] && camera.rotation.x > control.bounds[3]) {
                 if (!control.hovering) {
@@ -806,7 +818,7 @@
                 }
               });
               map.remove(collisionMap);
-              const sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("images/skies/1.png"), side: THREE.BackSide }));
+              const sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("images/skies/1.png"), side: THREE.BackSide, depthWrite: false }));
               sky.rotation.y = 2.2;
               scene.add(sky);
               utils.game.start();
@@ -873,6 +885,7 @@
               if (utils.data.throttle) utils.game.controls.stopThrottle();
               vehicle.physics.brake = true;
               utils.vehicle.setLights(true, "brake");
+              if (Date.now() - utils.data.lastThrottle < 500 || Math.floor(Math.random() * 4) == 0) sounds.pedal();
             },
             stopBrake: function() {
               vehicle.physics.brake = false;
@@ -880,7 +893,7 @@
             },
             throttle: function() {
               if (vehicle.physics.brake) utils.game.controls.stopBrake();
-              utils.data.throttle = true;
+              if (utils.data.currentTransmission != "park") utils.data.throttle = true;
             },
             stopThrottle: function() {
               utils.data.throttle = false;
@@ -890,32 +903,33 @@
               utils.vehicle.setInstruments(false, "Blinker");
               if (utils.data.blinker == "blinker_l") {
                 utils.vehicle.setLights(false, "blinker_l");
-                utils.vehicle.setInstruments(false, "Blinker");
                 vehicle.parts.Lever_L.rotation.x = 0;
                 utils.data.blinker = false;
               } else {
                 utils.data.blinker = "blinker_l";
                 vehicle.parts.Lever_L.rotation.x = -0.3;
               }
+              sounds.controlClick();
             },
             rightBlinker: function() {
               utils.vehicle.setLights(false, "blinker_l");
               utils.vehicle.setInstruments(false, "Blinker");
               if (utils.data.blinker == "blinker_r") {
                 utils.vehicle.setLights(false, "blinker_r");
-                utils.vehicle.setInstruments(false, "Blinker");
                 vehicle.parts.Lever_L.rotation.x = 0;
                 utils.data.blinker = false;
               } else {
                 utils.data.blinker = "blinker_r";
                 vehicle.parts.Lever_L.rotation.x = 0.3;
               }
+              sounds.controlClick();
             },
             stopBlinker: function() {
               utils.vehicle.setLights(false, utils.data.blinker);
               utils.vehicle.setInstruments(false, "Blinker");
               vehicle.parts.Lever_L.rotation.x = 0;
               utils.data.blinker = false;
+              sounds.controlClick();
             },
             shift: function(transmission, direction = null) {
               if (!transmission) {
@@ -933,7 +947,7 @@
                   }
                 }
               }
-              if (transmission == utils.data.currentTransmission) return;
+              if (transmission == utils.data.currentTransmission || (transmission == "park" && vehicle.speed > 1)) return;
               if (utils.data.currentTransmission == "reverse") {
                 utils.vehicle.setLights(false, "reverse");
                 utils.vehicle.setInstruments(false, "Backup_Camera");
@@ -943,6 +957,7 @@
               if (transmission == "drive") {
                 utils.data.currentTransmission = "drive";
                 vehicle.parts.Shifter.rotation.x = 0;
+                sounds.controlClick();
               } else if (transmission == "reverse") {
                 utils.data.currentTransmission = "reverse";
                 vehicle.parts.Shifter.rotation.x = 0.2;
@@ -950,9 +965,11 @@
                 utils.vehicle.backupRenderTarget.initialUpdate = true;
                 vehicle.parts.Control_Screen.material.color.setHex(0x000000);
                 utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOn", 500);
-              } else if (transmission == "park" && vehicle.speed < 1) {
+                sounds.controlClick();
+              } else if (transmission == "park") {
                 utils.data.currentTransmission = "park";
                 vehicle.parts.Shifter.rotation.x = 0.4;
+                sounds.controlClick();
               }
             }
           }
