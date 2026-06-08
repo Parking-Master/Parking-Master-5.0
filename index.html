@@ -20,6 +20,37 @@
       .ui {
         z-index: 10;
       }
+      .swal-overlay {
+        background: rgba(0, 0, 0, 0.2);
+      }
+      .swal-modal {
+        width: 300px;
+        background: rgba(150, 150, 190, 0.6);
+        border: 1px solid #97b7ff;
+        color: #fff;
+        border-radius: 2px;
+        font-family: "Toxigenesis", Arial;
+      }
+      .swal-title {
+        color: #fff;
+        font-size: 40px;
+      }
+      .swal-text {
+        color: #fff;
+      }
+      .swal-button-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .swal-button {
+        font-family: "Toxigenesis", Arial;
+        border-radius: 2px;
+        padding: 4px 20px;
+        background-color: #34a0ff;
+        color: #fff;
+      }
     </style>
   </head>
   <body>
@@ -30,6 +61,7 @@
     <script src="scripts/PointerLockControls.js"></script>
     <script src="scripts/particles.js"></script>
     <script src="scripts/sounds.js"></script>
+    <script src="scripts/sweetalert.js"></script>
     <canvas class="ui"></canvas>
     <script>
       function generateUUID() {
@@ -99,7 +131,7 @@
       const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
       const objects = {};
 
-      let chosenVehicle = "Toyota_RAV4";
+      let chosenVehicle = "Honda_Civic_Sport_Touring";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -113,6 +145,7 @@
 
       let startTime = Date.now();
       let maxTime = 120;
+      let timeLeft = null;
       let frameCount = 0;
       let lastTime = performance.now();
       let fps = 0;
@@ -234,7 +267,8 @@
           carHeadingMaxIncrement: 11,
           lastVehicleRotationY: 0,
           timeOfBrake: null,
-          timeOfGas: null
+          timeOfGas: null,
+          allowedToUseControls: true
         },
         vehicles: {
           "Honda_Civic_Sport_Touring": {
@@ -254,8 +288,8 @@
               wheelPhysics: {
                 weight: 10,
                 radius: 0.33,
-                suspensionStiffness: 30,
-                suspensionRestLength: 0.18,
+                suspensionStiffness: 36,
+                suspensionRestLength: 0.2,
                 frictionSlip: 2,
                 dampingRelaxation: 6,
                 dampingCompression: 4.5,
@@ -390,6 +424,12 @@
                     child.rotation.order = "YXZ";
                     vehicle.mesh = child;
                     const chassisSize = new THREE.Box3().setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
+                    vehicle.corners = {
+                      fl: new THREE.Vector3(chassisSize.x / 2, -chassisSize.y / 2, chassisSize.z / 2),
+                      fr: new THREE.Vector3(-chassisSize.x / 2, -chassisSize.y / 2, chassisSize.z / 2),
+                      rl: new THREE.Vector3(chassisSize.x / 2, -chassisSize.y / 2, -chassisSize.z / 2),
+                      rr: new THREE.Vector3(-chassisSize.x / 2, -chassisSize.y / 2, -chassisSize.z / 2)
+                    };
                     vehicle.chassisBody = new CANNON.Body({ mass: vehicle.physics.weight - vehicle.physics.wheelPhysics.weight * 4, shape: new CANNON.Box(new CANNON.Vec3(chassisSize.x / 2, chassisSize.y / 2, chassisSize.z / 2)), material: carMaterial });
                     vehicle.body = vehicle.chassisBody;
                   }
@@ -821,7 +861,7 @@
               const sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("images/skies/1.png"), side: THREE.BackSide, depthWrite: false }));
               sky.rotation.y = 2.2;
               scene.add(sky);
-              utils.game.start();
+              utils.game.loadLevel(1);
             });
           },
           addTrafficCone: function(x, y, z) {
@@ -841,6 +881,57 @@
           }
         },
         game: {
+          parkingLot: null,
+          currentLevel: 1,
+          currentLevelTrafficCones: [],
+          loadLevel: function(level) {
+            utils.game.currentLevel = level;
+            new THREE.GLTFLoader().load("models/parking-lots/lvl" + level + ".glb", function(model) {
+              if (utils.game.parkingLot != null) scene.remove(utils.game.parkingLot);
+              utils.game.parkingLot = model.scene;
+              utils.game.parkingLot.traverse(child => {
+                if (child.name.includes("Parking_Spot_Lines")) {
+                  child.material.map.anisotropy = 16;
+                  child.material.map.needsUpdate = true;
+                } else if (child.name.includes("Traffic_Cone")) {
+                  utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z);
+                }
+              });
+              utils.game.parkingLot.corners = {
+                fl: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_FL").position,
+                fr: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_FR").position,
+                rl: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_RL").position,
+                rr: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_RR").position
+              };
+              scene.add(utils.game.parkingLot);
+              if (level == 1) utils.game.start();
+            });
+          },
+          park: function() {
+            const distances = [];
+            for (corner in vehicle.corners) {
+              const axis = vehicle.corners[corner].clone().applyQuaternion(vehicle.mesh.quaternion);
+              const cornerPosition = new THREE.Vector3().copy(vehicle.mesh.position).add(axis);
+              const cornerDistance = cornerPosition.distanceTo(utils.game.parkingLot.corners[corner]);
+              distances.push(cornerDistance);
+            }
+            const lowestDistance = Math.min(...distances);
+            const highestDistance = Math.max(...distances);
+            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2) return;
+            const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(timeLeft / maxTime, 5) * 5), 10), 0));
+            utils.data.allowedToUseControls = false;
+            document.exitPointerLock();
+            swal({
+              title: "10/10",
+              text: "Good",
+              button: "Next level ⤳",
+              closeOnClickOutside: false,
+              closeOnEsc: false,
+            }).then(function() {
+              utils.game.loadLevel(utils.game.currentLevel + 1);
+            });
+            document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
+          },
           start: function() {
             renderer.shadowMap.needsUpdate = true;
             for (let i = 0; i < 6; i++) {
@@ -970,6 +1061,7 @@
                 utils.data.currentTransmission = "park";
                 vehicle.parts.Shifter.rotation.x = 0.4;
                 sounds.controlClick();
+                utils.game.park();
               }
             }
           }
@@ -984,8 +1076,8 @@
           },
           update: function(time) {
             const ctx = utils.ui.ctx;
-            const timeLeft = (maxTime * 1000) - (time - startTime);
-            const minutesLeft = timeLeft / 60000;
+            timeLeft = ((maxTime * 1000) - (time - startTime)) / 1000;
+            const minutesLeft = timeLeft / 60;
             const secondsLeft = ("." + minutesLeft.toString().split(".")[1]) * 60;
             const formattedTime = `${Math.floor(minutesLeft)}:${("0" + Math.floor(secondsLeft)).slice(-2)}`;
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
@@ -1021,6 +1113,7 @@
       PointerControls.isLocked = false;
 
       document.addEventListener("keydown", function(event) {
+        if (!utils.data.allowedToUseControls) return;
         keyStates[event.key] = true;
         if (!event.repeat) {
           if (vehicle.currentView == 0) {
@@ -1043,16 +1136,19 @@
         }
       });
       document.addEventListener("keyup", function(event) {
+        if (!utils.data.allowedToUseControls) return;
         keyStates[event.key] = false;
         if (event.key == "b") utils.game.controls.stopBrake();
         if (event.key == "ArrowUp") utils.game.controls.stopThrottle();
       });
       document.addEventListener("mousedown", function(event) {
-        if (document.pointerLockElement != null) return;
+        if (!utils.data.allowedToUseControls) return;
+        if (document.pointerLockElement != null || swal.getState().isOpen) return;
         document.body.requestPointerLock();
         PointerControls.lock();
       });
       document.addEventListener("mouseup", (event) => {
+        if (!utils.data.allowedToUseControls) return;
         if (!PointerControls.isLocked) return;
         PointerControls.lock();
       });
