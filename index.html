@@ -11,6 +11,7 @@
       }
       html, body {
         margin: 0;
+        overflow: hidden;
       }
       canvas {
         position: absolute;
@@ -51,6 +52,47 @@
         background-color: #34a0ff;
         color: #fff;
       }
+      .loading {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        background-image: url(images/loading-screens/0.png);
+        background-size: cover;
+        background-position: center;
+        z-index: 99999;
+        pointer-events: none;
+        transition: opacity .5s;
+      }
+      .loading-banner {
+        position: absolute;
+        width: 100%;
+        height: 150px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), #000);
+      }
+      .loading-text {
+        color: #eee;
+        font-family: "Toxigenesis", Arial;
+        font-size: 50px;
+        vertical-align: middle;
+        line-height: 150px;
+        padding-left: 50px;
+      }
+      .progress-bar {
+        position: relative;
+        top: 0;
+        width: 0;
+        height: 5px;
+        background: #34a0ff;
+        transition: width 2s ease-out;
+      }
     </style>
   </head>
   <body>
@@ -63,6 +105,12 @@
     <script src="scripts/sounds.js"></script>
     <script src="scripts/sweetalert.js"></script>
     <canvas class="ui"></canvas>
+    <div class="loading">
+      <div class="loading-banner">
+        <div class="progress-bar"></div>
+        <div class="loading-text">Loading...</div>
+      </div>
+    </div>
     <script>
       function generateUUID() {
         return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
@@ -130,6 +178,15 @@
       const quaternions = [new CANNON.Quaternion()];
       const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
       const objects = {};
+      const loadingManager = new THREE.LoadingManager();
+
+      let previousProgress = 0;
+      loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
+        const progress = itemsLoaded / itemsTotal;
+        if (progress < previousProgress) return;
+        previousProgress = progress;
+        document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
+      };
 
       let chosenVehicle = "Honda_Civic_Sport_Touring";
       let keyStates = {};
@@ -143,9 +200,6 @@
 
       sounds.initialize();
 
-      let startTime = Date.now();
-      let maxTime = 120;
-      let timeLeft = null;
       let frameCount = 0;
       let lastTime = performance.now();
       let fps = 0;
@@ -164,7 +218,7 @@
         utils.vehicle.updateEffects();
         particles.update();
         if (frameCount % 2 == 0) {
-          utils.ui.update(time);
+          utils.ui.update(deltaTime, time);
           sounds.update(time);
         }
 
@@ -215,6 +269,11 @@
             } else if (object.objectType == "backupCameraOff") {
               vehicle.parts.Control_Screen.material.map = vehicle.parts.Control_Screen.material.mainMap;
               vehicle.parts.Control_Screen.material.color.setHex(0xffffff);
+              delete objects[id];
+            } else if (object.objectType == "timerStart") {
+              utils.data.countdown = true;
+              utils.data.levelStartTime = Date.now();
+              delete objects[id];
             }
           }
         }
@@ -268,7 +327,11 @@
           lastVehicleRotationY: 0,
           timeOfBrake: null,
           timeOfGas: null,
-          allowedToUseControls: true
+          allowedToUseControls: false,
+          countdown: false,
+          levelTime: 120,
+          levelStartTime: null,
+          timeLeft: null,
         },
         vehicles: {
           "Honda_Civic_Sport_Touring": {
@@ -406,7 +469,7 @@
             vehicle = Object.assign(new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 }), utils.vehicles[chosenVehicle]);
             new THREE.TextureLoader().load("images/skies/1_envmap.png", function(texture) {
               utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
-              new THREE.GLTFLoader().load("models/cars/" + chosenVehicle + ".glb", function(model) {
+              new THREE.GLTFLoader(loadingManager).load("models/cars/" + chosenVehicle + ".glb", function(model) {
                 vehicle.model = model.scene;
                 vehicle.model.traverse(child => {
                   vehicle.parts[child.name] = child;
@@ -449,7 +512,7 @@
                   wheel.body.addShape(new CANNON.Cylinder(wheel.radius, wheel.radius, wheel.radius / 2, 20), vectors[12], quaternions[0]);
                 }
                 vehicle.debris = [];
-                new THREE.GLTFLoader().load("models/debris.glb", function(model) {
+                new THREE.GLTFLoader(loadingManager).load("models/debris.glb", function(model) {
                   model.scene.children.forEach(child => {
                     const entry = { body: new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.2, 0.2, 0.2)) }), mesh: child };
                     physicsBodies.push(entry);
@@ -813,7 +876,7 @@
         map: {
           trafficCone: null,
           initialize: function() {
-            new THREE.GLTFLoader().load("models/parking-lots/main.glb", function(model) {
+            new THREE.GLTFLoader(loadingManager).load("models/parking-lots/main.glb", function(model) {
               map = model.scene;
               utils.map.trafficCone = map.getObjectByName("Traffic_Cone");
               const cars = map.getObjectByName("PropCars").children;
@@ -884,9 +947,16 @@
           parkingLot: null,
           currentLevel: 1,
           currentLevelTrafficCones: [],
+          levels: [
+            { time: 60, spawnPoint: [-5,1,2,0,Math.PI/2,0] },
+            { time: 45, spawnPoint: [-6,1,0,0,-Math.PI/2,0] },
+          ],
           loadLevel: function(level) {
+            previousProgress = 0;
+            document.querySelector(".loading").style.opacity = 1;
+            document.querySelector(".progress-bar").style.width = "";
             utils.game.currentLevel = level;
-            new THREE.GLTFLoader().load("models/parking-lots/lvl" + level + ".glb", function(model) {
+            new THREE.GLTFLoader(loadingManager).load("models/parking-lots/lvl" + level + ".glb", function(model) {
               if (utils.game.parkingLot != null) scene.remove(utils.game.parkingLot);
               utils.game.parkingLot = model.scene;
               utils.game.parkingLot.traverse(child => {
@@ -904,6 +974,16 @@
                 rr: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_RR").position
               };
               scene.add(utils.game.parkingLot);
+              utils.data.allowedToUseControls = true;
+              utils.data.currentHeading = 0;
+              const spawnPoint = utils.game.levels[level - 1].spawnPoint;
+              vehicle.body.position.set(spawnPoint[0], spawnPoint[1], spawnPoint[2]);
+              vehicle.body.quaternion.setFromEuler(spawnPoint[3], spawnPoint[4], spawnPoint[5]);
+              setTimeout(() => {
+                utils.game.controls.shift("drive");
+                utils.game.startTimer();
+                document.querySelector(".loading").style.opacity = 0;
+              }, 1000);
               if (level == 1) utils.game.start();
             });
           },
@@ -918,12 +998,21 @@
             const lowestDistance = Math.min(...distances);
             const highestDistance = Math.max(...distances);
             if (highestDistance - lowestDistance > 0.8 || highestDistance > 2) return;
-            const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(timeLeft / maxTime, 5) * 5), 10), 0));
+            const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(utils.data.timeLeft / utils.data.levelTime, 5) * 5), 10), 0));
             utils.data.allowedToUseControls = false;
             document.exitPointerLock();
+            let texts = ["Good job!", "Nice job!", "Great!", "Awesome!"];
+            let text = "";
+            if (score < 5) {
+              text = "Good";
+            } else if (score < 10) {
+              text = texts[Math.floor(Math.random() * texts.length)];
+            } else {
+              text = "Perfect!";
+            }
             swal({
               title: "10/10",
-              text: "Good",
+              text: text,
               button: "Next level ⤳",
               closeOnClickOutside: false,
               closeOnEsc: false,
@@ -931,6 +1020,12 @@
               utils.game.loadLevel(utils.game.currentLevel + 1);
             });
             document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
+          },
+          startTimer: function() {
+            utils.data.countdown = false;
+            utils.data.levelTime = utils.game.levels[utils.game.currentLevel - 1].time;
+            utils.data.countdownTextEffect = 1;
+            utils.scheduleObject({}, "timerStart", 3000);
           },
           start: function() {
             renderer.shadowMap.needsUpdate = true;
@@ -1074,10 +1169,10 @@
             canvas.height = window.innerHeight;
             utils.ui.ctx = canvas.getContext("2d");
           },
-          update: function(time) {
+          update: function(deltaTime, time) {
             const ctx = utils.ui.ctx;
-            timeLeft = ((maxTime * 1000) - (time - startTime)) / 1000;
-            const minutesLeft = timeLeft / 60;
+            if (utils.data.allowedToUseControls) utils.data.timeLeft = ((utils.data.levelTime * 1000) - (time - utils.data.levelStartTime)) / 1000;
+            const minutesLeft = utils.data.timeLeft / 60;
             const secondsLeft = ("." + minutesLeft.toString().split(".")[1]) * 60;
             const formattedTime = `${Math.floor(minutesLeft)}:${("0" + Math.floor(secondsLeft)).slice(-2)}`;
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
@@ -1099,8 +1194,30 @@
             ctx.font = "12px Toxigenesis";
             ctx.fillText("mph", 90, window.innerHeight - 74);
             ctx.fillText(utils.data.currentGear + 1, 90, window.innerHeight - 58);
-            ctx.font = "50px Toxigenesis";
-            ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10);
+            if (utils.data.countdown) {
+              if (utils.data.timeLeft <= 0) return utils.game.gameOver();
+              const seconds = Math.floor(secondsLeft);
+              if (minutesLeft < 1 && seconds <= 3 && utils.data.previousSeconds != seconds) {
+                utils.data.previousSeconds = seconds;
+                utils.data.countdownTextEffect = 1;
+              }
+              if (utils.data.countdownTextEffect) {
+                utils.data.countdownTextEffect /= 1.3;
+                ctx.font = `${50 / utils.data.countdownTextEffect}px Toxigenesis`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${utils.data.countdownTextEffect})`;
+                ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10 + (10 / utils.data.countdownTextEffect));
+                if (utils.data.countdownTextEffect <= 0.03) utils.data.countdownTextEffect = 0;
+                ctx.fillStyle = "#ffffff";
+              }
+              ctx.font = "50px Toxigenesis";
+              ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10);
+            } else {
+              const minutes = utils.data.levelTime / 60;
+              const seconds = ("." + minutes.toFixed(5).split(".")[1]) * 60;
+              const levelTime = `${Math.floor(minutes)}:${("0" + Math.floor(seconds)).slice(-2)}`;
+              ctx.font = "50px Toxigenesis";
+              ctx.fillText(levelTime, window.innerWidth / 2, 50 + 10);
+            }
             ctx.restore();
           }
         }
