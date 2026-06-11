@@ -70,6 +70,7 @@ sounds = {
       idle: loadSound(`sounds/cars/${chosenVehicle}/idle.mp3`),
       rev: loadSound(`sounds/cars/${chosenVehicle}/rev.mp3`),
       warningBackup: loadSound(`sounds/cars/${chosenVehicle}/warning-backup.mp3`),
+      blinker: loadSound(`sounds/cars/${chosenVehicle}/blinker.mp3`),
       ambience: loadSound("sounds/cars/ambience.mp3"),
       ambienceInterior: loadSound("sounds/cars/ambience-interior.mp3"),
       bump: loadSound("sounds/cars/bump.mp3"),
@@ -79,7 +80,6 @@ sounds = {
       hitInterior: loadSound("sounds/cars/hit-interior.mp3"),
       crashInterior: loadSound("sounds/cars/crash-interior.mp3"),
       tireSqueak: loadSound("sounds/cars/tire-squeak.mp3"),
-      blinker: loadSound("sounds/cars/blinker.mp3"),
       controlClick: loadSound("sounds/cars/control-click.mp3"),
       pedal: loadSound("sounds/cars/pedal.mp3"),
     };
