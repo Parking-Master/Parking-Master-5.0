@@ -25,7 +25,7 @@
         background: rgba(0, 0, 0, 0.2);
       }
       .swal-modal {
-        width: 300px;
+        width: 350px;
         background: rgba(150, 150, 190, 0.6);
         border: 1px solid #97b7ff;
         color: #fff;
@@ -39,7 +39,7 @@
       .swal-text {
         color: #fff;
       }
-      .swal-button-container {
+      .swal-footer {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -188,7 +188,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Mini_Cooper";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -339,7 +339,7 @@
               maxSpeedMPH: 140,
               drivetrain: "fwd",
               brakes: "awb",
-              engineForce: 1600,
+              engineForce: 1200,
               wheelTurnRatio: 12,
               frontArea: 2.2,
               rearArea: 2.7,
@@ -441,7 +441,7 @@
               maxSpeedMPH: 142,
               drivetrain: "fwd",
               brakes: "awb",
-              engineForce: 700,
+              engineForce: 750,
               wheelTurnRatio: 14,
               frontArea: 2.5,
               rearArea: 2.9,
@@ -481,7 +481,7 @@
             currentControl: null,
             views: [
               [0.33, 0.4, -0.3, 0, Math.PI, 0],
-              [0, 1, -5.2, 0.12, 3.141592653589793, 0],
+              [0, 1.1, -5.8, 0.12, 3.141592653589793, 0],
               [1.3, 0, -3.2, 0.05, Math.PI, 0],
               [0, 0.55, 4.8, -0.08, 0, 0]
             ],
@@ -530,6 +530,7 @@
                   }
                   if (child.name == "Exterior" || child.name == "Roof" || child.name == "Trim" || child.name == "Windows" || child.name == "Mirror_R") {
                     child.material.envMap = utils.vehicle.envMap;
+                    if (child.name == "Exterior") vehicle.originalExteriorGeometry = child.geometry.clone();
                   } else if (child.name == "Shadow") {
                     child.shadowSize = [child.scale.x, child.scale.y];
                     vehicle.shadow = child;
@@ -571,6 +572,7 @@
                   });
                 });
                 vehicle.body.addEventListener("collide", function(event) {
+                  if (Math.abs(event.contact.ni.x) <= 0.1 && Math.abs(event.contact.ni.y) >= 0.5 && Math.abs(event.contact.ni.z) <= 0) return;
                   const time = Date.now();
                   if (time - utils.data.lastCrash < 500) return;
                   utils.data.lastCrash = time;
@@ -600,6 +602,7 @@
                     utils.vehicle.setInstruments(true, "Airbag");
                     utils.vehicle.cameraBob(20);
                   }
+                  utils.game.gameOver();
                 });
 
                 vehicle.body.position.y = 1;
@@ -659,9 +662,9 @@
             }
           },
           updateSteering: function(deltaTime) {
-            if (keyStates["ArrowLeft"]) {
+            if (keyStates["ArrowLeft"] && utils.data.allowedToUseControls) {
               utils.data.carHeadingIncrement = Math.min(utils.data.carHeadingIncrement + (50 * deltaTime), utils.data.carHeadingMaxIncrement);
-            } else if (keyStates["ArrowRight"]) {
+            } else if (keyStates["ArrowRight"] && utils.data.allowedToUseControls) {
               utils.data.carHeadingIncrement = Math.max(utils.data.carHeadingIncrement - (50 * deltaTime), -utils.data.carHeadingMaxIncrement);
             } else {
               if (utils.data.carHeadingIncrement < -1 || utils.data.carHeadingIncrement > 1) {
@@ -736,10 +739,8 @@
                 wheel.mesh.position.copy(wheel.body.position);
                 wheel.mesh.quaternion.copy(wheel.body.quaternion);
               }
-              const shadowOffset = Math.abs(vehicle.mesh.rotation.y / 10);
-              vehicle.shadow.position.set(vehicle.mesh.position.x + shadowOffset, 0, vehicle.mesh.position.z + shadowOffset);
+              vehicle.shadow.position.set(vehicle.mesh.position.x, 0, vehicle.mesh.position.z);
               vehicle.shadow.rotation.z = vehicle.mesh.rotation.y - Math.PI / 2;
-              vehicle.shadow.scale.set(vehicle.shadow.shadowSize[0] + shadowOffset, vehicle.shadow.shadowSize[1] + shadowOffset, 0);
             }
           },
           updateView: function(deltaTime, time) {
@@ -926,6 +927,7 @@
         },
         map: {
           trafficCone: null,
+          trafficCones: [],
           initialize: function() {
             new THREE.GLTFLoader(loadingManager).load("models/parking-lots/main.glb", function(model) {
               map = model.scene;
@@ -992,6 +994,13 @@
             scene.add(trafficCone);
             const entry = { mesh: trafficCone, body: body };
             physicsBodies.push(entry);
+            utils.map.trafficCones.push(entry);
+          },
+          removeTrafficCone: function(trafficCone) {
+            world.remove(trafficCone.body);
+            scene.remove(trafficCone.mesh);
+            physicsBodies.splice(physicsBodies.indexOf(trafficCone), 1);
+            utils.map.trafficCones.splice(utils.map.trafficCones.indexOf(trafficCone), 1);
           }
         },
         game: {
@@ -1038,6 +1047,27 @@
               if (level == 1) utils.game.start();
             });
           },
+          gameOver: function(reason = "crash") {
+            utils.data.allowedToUseControls = false;
+            document.exitPointerLock();
+            utils.game.controls.stopThrottle();
+            utils.game.controls.brake();
+            swal({
+              title: "Game over",
+              text: reason == "crash" ? "You crashed!" : "You ran out of time!",
+              buttons: ["Close", "Try again (10 pts)"],
+              closeOnClickOutside: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+            }).then(function(e) {
+              if (e) {
+                utils.game.resetCar();
+              } else if (e != null) {
+                location.replace("/");
+              }
+            });
+          },
           park: function() {
             const distances = [];
             for (corner in vehicle.corners) {
@@ -1048,7 +1078,7 @@
             }
             const lowestDistance = Math.min(...distances);
             const highestDistance = Math.max(...distances);
-            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2) return;
+            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return;
             const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(utils.data.timeLeft / utils.data.levelTime, 5) * 5), 10), 0));
             utils.data.allowedToUseControls = false;
             document.exitPointerLock();
@@ -1077,6 +1107,36 @@
             utils.data.levelTime = utils.game.levels[utils.game.currentLevel - 1].time;
             utils.data.countdownTextEffect = 1;
             utils.scheduleObject({}, "timerStart", 3000);
+          },
+          resetCar: function() {
+            previousProgress = 0;
+            document.querySelector(".loading").style.opacity = 1;
+            document.querySelector(".progress-bar").style.width = "";
+            setTimeout(() => {
+              for (key in keyStates) keyStates[key] = false;
+              utils.game.controls.stopBrake();
+              utils.data.currentHeading = 0;
+              utils.game.controls.shift("drive");
+              vehicle.debris.forEach(x => (scene.remove(x.mesh), world.remove(x.body)));
+              vehicle.body.velocity.set(0, 0, 0);
+              vehicle.body.angularVelocity.set(0, 0, 0);
+              vehicle.parts.Exterior.geometry.dispose();
+              vehicle.parts.Exterior.geometry = vehicle.originalExteriorGeometry.clone();
+              vehicle.parts.Windows.material.map = null;
+              vehicle.parts.Windows.material.emissive.setHex(0x000000);
+              utils.game.controls.switchView(vehicle.currentView);
+              utils.vehicle.setInstruments(false, "Airbag");
+              for (let i = utils.map.trafficCones.length - 1; i >= 0; i--) utils.map.removeTrafficCone(utils.map.trafficCones[i]);
+              for (let i = 0; i < 6; i++) utils.map.addTrafficCone(28, 1, 4 - (i * 2));
+              utils.game.parkingLot.traverse(child => child.name.includes("Traffic_Cone") && utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z));
+              const spawnPoint = utils.game.levels[utils.game.currentLevel - 1].spawnPoint;
+              vehicle.body.position.set(spawnPoint[0], spawnPoint[1], spawnPoint[2]);
+              vehicle.body.quaternion.setFromEuler(spawnPoint[3], spawnPoint[4], spawnPoint[5]);
+              swal.close();
+              document.querySelector(".loading").style.opacity = 0;
+              utils.game.startTimer();
+              utils.data.allowedToUseControls = true;
+            }, 1000);
           },
           start: function() {
             renderer.shadowMap.needsUpdate = true;
@@ -1246,22 +1306,27 @@
             ctx.fillText("mph", 90, window.innerHeight - 74);
             ctx.fillText(utils.data.currentGear + 1, 90, window.innerHeight - 58);
             if (utils.data.countdown) {
-              if (utils.data.timeLeft <= 0) return utils.game.gameOver();
-              const seconds = Math.floor(secondsLeft);
-              if (minutesLeft < 1 && seconds <= 3 && utils.data.previousSeconds != seconds) {
-                utils.data.previousSeconds = seconds;
-                utils.data.countdownTextEffect = 1;
+              if (utils.data.timeLeft <= 0) {
+                if (utils.data.allowedToUseControls) utils.game.gameOver("time");
+                ctx.font = "50px Toxigenesis";
+                ctx.fillText("0:00", window.innerWidth / 2, 50 + 10);
+              } else {
+                const seconds = Math.floor(secondsLeft);
+                if (minutesLeft < 1 && seconds <= 3 && utils.data.previousSeconds != seconds) {
+                  utils.data.previousSeconds = seconds;
+                  utils.data.countdownTextEffect = 1;
+                }
+                if (utils.data.countdownTextEffect) {
+                  utils.data.countdownTextEffect /= 1.3;
+                  ctx.font = `${50 / utils.data.countdownTextEffect}px Toxigenesis`;
+                  ctx.fillStyle = `rgba(255, 255, 255, ${utils.data.countdownTextEffect})`;
+                  ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10 + (10 / utils.data.countdownTextEffect));
+                  if (utils.data.countdownTextEffect <= 0.03) utils.data.countdownTextEffect = 0;
+                  ctx.fillStyle = "#ffffff";
+                }
+                ctx.font = "50px Toxigenesis";
+                ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10);
               }
-              if (utils.data.countdownTextEffect) {
-                utils.data.countdownTextEffect /= 1.3;
-                ctx.font = `${50 / utils.data.countdownTextEffect}px Toxigenesis`;
-                ctx.fillStyle = `rgba(255, 255, 255, ${utils.data.countdownTextEffect})`;
-                ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10 + (10 / utils.data.countdownTextEffect));
-                if (utils.data.countdownTextEffect <= 0.03) utils.data.countdownTextEffect = 0;
-                ctx.fillStyle = "#ffffff";
-              }
-              ctx.font = "50px Toxigenesis";
-              ctx.fillText(formattedTime, window.innerWidth / 2, 50 + 10);
             } else {
               const minutes = utils.data.levelTime / 60;
               const seconds = ("." + minutes.toFixed(5).split(".")[1]) * 60;
