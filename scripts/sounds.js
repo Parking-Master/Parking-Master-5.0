@@ -71,6 +71,7 @@ sounds = {
       rev: loadSound(`sounds/cars/${chosenVehicle}/rev.mp3`),
       warningBackup: loadSound(`sounds/cars/${chosenVehicle}/warning-backup.mp3`),
       blinker: loadSound(`sounds/cars/${chosenVehicle}/blinker.mp3`),
+      startup: loadSound(`sounds/cars/${chosenVehicle}/startup.mp3`),
       ambience: loadSound("sounds/cars/ambience.mp3"),
       ambienceInterior: loadSound("sounds/cars/ambience-interior.mp3"),
       bump: loadSound("sounds/cars/bump.mp3"),
@@ -149,6 +150,7 @@ sounds = {
         sounds.library.cars.decelerate.play();
       }
       if (sounds.library.cars.ambienceInterior.playing) sounds.library.cars.ambienceInterior.pause(), sounds.library.cars.ambience.currentTime = 0, sounds.library.cars.ambience.loop = true, sounds.library.cars.ambience.play();
+      if (sounds.library.cars.startup.playing) sounds.library.cars.startup.pause();
     }
     if (utils.data.currentTransmission == "reverse" && vehicle.speedMPH > 10) {
       if (!didBackupWarning) {
@@ -198,10 +200,16 @@ sounds = {
   blinker: function() {
     if (vehicle.currentView == 0 && !sounds.library.cars.blinker.playing) sounds.library.cars.blinker.currentTime = 0, sounds.library.cars.blinker.play();
   },
+  stopBlinker: function() {
+    if (vehicle.currentView == 0 && sounds.library.cars.blinker.playing) sounds.library.cars.blinker.pause();
+  },
   controlClick: function() {
     if (vehicle.currentView == 0 && !sounds.library.cars.controlClick.playing) sounds.library.cars.controlClick.currentTime = 0, sounds.library.cars.controlClick.play();
   },
   pedal: function() {
     if (vehicle.currentView == 0 && !sounds.library.cars.pedal.playing) sounds.library.cars.pedal.currentTime = 0, sounds.library.cars.pedal.play();
+  },
+  startup: function() {
+    sounds.library.cars.startup.play();
   }
 };
