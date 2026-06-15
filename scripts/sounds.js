@@ -82,11 +82,14 @@ sounds = {
       crashInterior: loadSound("sounds/cars/crash-interior.mp3"),
       tireSqueak: loadSound("sounds/cars/tire-squeak.mp3"),
       controlClick: loadSound("sounds/cars/control-click.mp3"),
-      pedal: loadSound("sounds/cars/pedal.mp3"),
+      pedal: loadSound("sounds/cars/pedal.mp3")
     };
   },
   library: {
-    cars: null
+    cars: null,
+    timeStart: loadSound("sounds/time-start.mp3"),
+    timeLow: loadSound("sounds/time-low.mp3"),
+    success: loadSound("sounds/success.mp3")
   },
   update: function(time) {
     let accelerateSound = null;
@@ -211,5 +214,19 @@ sounds = {
   },
   startup: function() {
     sounds.library.cars.startup.play();
-  }
+  },
+  timeStart: function() {
+    sounds.library.timeStart.currentTime = 0;
+    sounds.library.timeStart.play();
+  },
+  timeLow: function() {
+    if (!sounds.library.timeLow.playing) {
+      sounds.library.timeLow.currentTime = 0;
+      sounds.library.timeLow.play();
+    }
+  },
+  success: function() {
+    sounds.library.success.currentTime = 0;
+    sounds.library.success.play();
+  },
 };

@@ -199,7 +199,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Ford_Victoria";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -282,6 +282,7 @@
             } else if (object.objectType == "timerStart") {
               utils.data.countdown = true;
               utils.data.levelStartTime = Date.now();
+              sounds.timeStart();
               delete objects[id];
             }
           }
@@ -301,7 +302,7 @@
           vehicle.model.visible = false;
           renderer.setRenderTarget(utils.vehicle.mirrorRenderTarget);
           renderer.render(scene, vehicle.parts.Mirror_L_Camera);
-          if (utils.data.currentTransmission == "reverse") {
+          if (utils.data.currentTransmission == "reverse" && vehicle.hasBackupCamera) {
             renderer.setRenderTarget(utils.vehicle.backupRenderTarget);
             renderer.render(scene, vehicle.parts.Backup_Camera);
           }
@@ -347,7 +348,6 @@
             physics: {
               maxSpeedMPH: 140,
               drivetrain: "fwd",
-              brakes: "awb",
               engineForce: 1200,
               wheelTurnRatio: 12,
               frontArea: 2.2,
@@ -371,6 +371,8 @@
               }
             },
             parts: {},
+            hasBackupCamera: true,
+            hasControlScreen: true,
             controls: {
               "Shifter": {
                 hovering: false,
@@ -398,7 +400,6 @@
             physics: {
               maxSpeedMPH: 119,
               drivetrain: "fwd",
-              brakes: "awb",
               engineForce: 700,
               wheelTurnRatio: 10,
               frontArea: 2.5,
@@ -422,6 +423,8 @@
               }
             },
             parts: {},
+            hasBackupCamera: true,
+            hasControlScreen: true,
             controls: {
               "Shifter": {
                 hovering: false,
@@ -449,7 +452,6 @@
             physics: {
               maxSpeedMPH: 142,
               drivetrain: "fwd",
-              brakes: "awb",
               engineForce: 750,
               wheelTurnRatio: 14,
               frontArea: 2.5,
@@ -473,6 +475,8 @@
               }
             },
             parts: {},
+            hasBackupCamera: true,
+            hasControlScreen: true,
             controls: {
               "Shifter": {
                 hovering: false,
@@ -493,6 +497,54 @@
               [0, 1.1, -5.8, 0.12, 3.141592653589793, 0],
               [1.3, 0, -3.2, 0.05, Math.PI, 0],
               [0, 0.55, 4.8, -0.08, 0, 0]
+            ],
+            currentView: 0
+          },
+          "Ford_Victoria": {
+            physics: {
+              maxSpeedMPH: 122,
+              drivetrain: "rwd",
+              engineForce: 900,
+              wheelTurnRatio: 12.5,
+              frontArea: 2.2,
+              rearArea: 2.3,
+              weight: 1773,
+              gearRatios: [3.55, 3.27, 2.73],
+              finalDriveRatio: 3.27,
+              upshiftRPM: 5500,
+              downshiftRPM: 1800,
+              wheelPhysics: {
+                weight: 9,
+                radius: 0.35,
+                suspensionStiffness: 36,
+                suspensionRestLength: 0.42,
+                frictionSlip: 1,
+                dampingRelaxation: 2.3,
+                dampingCompression: 4.4,
+                maxSuspensionForce: 100000,
+                maxSuspensionTravel: 1,
+                rollInfluence: 0.05
+              }
+            },
+            parts: {},
+            hasBackupCamera: false,
+            hasControlScreen: false,
+            controls: {
+              "Shifter": {
+                hovering: false,
+                bounds: [-2.2, -2.7, -0.45, -0.8]
+              },
+              "Lever_L": {
+                hovering: false,
+                bounds: [3.1, 2.8, -0.25, -0.5]
+              }
+            },
+            currentControl: null,
+            views: [
+              [0.4, 0.35, 0, 0, 3.141592653589793, 0],
+              [0, 1.15, -6.1, 0.12, 3.141592653589793, 0],
+              [1.3, 0, -3.3, 0.05, Math.PI, 0],
+              [0, 0.5, 5, -0.08, 0, 0]
             ],
             currentView: 0
           }
@@ -623,7 +675,7 @@
                 utils.game.controls.stopBrake();
                 utils.vehicle.setLights(false);
                 utils.vehicle.setInstruments(false);
-                vehicle.parts.Control_Screen.material.mainMap = vehicle.parts.Control_Screen.material.map;
+                if (vehicle.hasControlScreen) vehicle.parts.Control_Screen.material.mainMap = vehicle.parts.Control_Screen.material.map;
                 utils.map.initialize();
               });
             });
@@ -649,18 +701,10 @@
                 vehicle.setBrake(10, 2);
                 vehicle.setBrake(10, 3);
               } else {
-                if (vehicle.physics.brakes == "fwb") {
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 0);
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 1);
-                } else if (vehicle.physics.brakes == "rwb") {
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 2);
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 3);
-                } else if (vehicle.physics.brakes == "awb") {
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 0);
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 1);
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 2);
-                  vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 3);
-                }
+                vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 0);
+                vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 1);
+                vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 2);
+                vehicle.applyEngineForce(brakeForce * vehicle.currentVehicleSpeedKmHour, 3);
               }
             }
             if (utils.data.currentTransmission == "park" && vehicle.speed > 0.02) {
@@ -1018,8 +1062,8 @@
           currentLevel: null,
           currentLevelTrafficCones: [],
           levels: [
-            { time: 60, spawnPoint: [-5,1,2,0,Math.PI/2,0] },
-            { time: 45, spawnPoint: [-6,1,0,0,-Math.PI/2,0] },
+            { time: 30, spawnPoint: [-5,1,2,0,Math.PI/2,0] },
+            { time: 25, spawnPoint: [-6,1,0,0,-Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             function next() {
@@ -1120,6 +1164,7 @@
               utils.game.loadLevel(utils.game.currentLevel + 1);
             });
             document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
+            sounds.success();
           },
           startTimer: function() {
             utils.data.countdown = false;
@@ -1253,9 +1298,11 @@
               if (transmission == utils.data.currentTransmission || (transmission == "park" && vehicle.speed > 1)) return;
               if (utils.data.currentTransmission == "reverse") {
                 utils.vehicle.setLights(false, "reverse");
-                utils.vehicle.setInstruments(false, "Backup_Camera");
-                vehicle.parts.Control_Screen.material.color.setHex(0x000000);
-                utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOff", 500);
+                if (vehicle.hasControlScreen && vehicle.hasBackupCamera) {
+                  utils.vehicle.setInstruments(false, "Backup_Camera");
+                  vehicle.parts.Control_Screen.material.color.setHex(0x000000);
+                  utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOff", 500);
+                }
               }
               if (transmission == "drive") {
                 utils.data.currentTransmission = "drive";
@@ -1266,8 +1313,10 @@
                 vehicle.parts.Shifter.rotation.x = 0.2;
                 utils.vehicle.setLights(true, "reverse");
                 utils.vehicle.backupRenderTarget.initialUpdate = true;
-                vehicle.parts.Control_Screen.material.color.setHex(0x000000);
-                utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOn", 500);
+                if (vehicle.hasControlScreen && vehicle.hasBackupCamera) {
+                  vehicle.parts.Control_Screen.material.color.setHex(0x000000);
+                  utils.scheduleObject(vehicle.parts.Control_Screen, "backupCameraOn", 500);
+                }
                 sounds.controlClick();
               } else if (transmission == "park") {
                 utils.data.currentTransmission = "park";
@@ -1348,6 +1397,7 @@
                 if (minutesLeft < 1 && seconds <= 3 && utils.data.previousSeconds != seconds) {
                   utils.data.previousSeconds = seconds;
                   utils.data.countdownTextEffect = 1;
+                  sounds.timeLow();
                 }
                 if (utils.data.countdownTextEffect) {
                   utils.data.countdownTextEffect /= 1.3;
