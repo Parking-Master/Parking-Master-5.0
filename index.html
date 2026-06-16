@@ -111,6 +111,7 @@
     <script src="scripts/particles.js"></script>
     <script src="scripts/sounds.js"></script>
     <script src="scripts/sweetalert.js"></script>
+    <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <canvas class="ui"></canvas>
     <img class="howtoplay" src="images/howtoplay.png">
     <div class="loading">
@@ -199,7 +200,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Ford_Victoria";
+      let chosenVehicle = "Honda_Civic";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -504,7 +505,7 @@
             physics: {
               maxSpeedMPH: 122,
               drivetrain: "rwd",
-              engineForce: 900,
+              engineForce: 1000,
               wheelTurnRatio: 12.5,
               frontArea: 2.2,
               rearArea: 2.3,
@@ -517,7 +518,7 @@
                 weight: 9,
                 radius: 0.35,
                 suspensionStiffness: 36,
-                suspensionRestLength: 0.42,
+                suspensionRestLength: 0.41,
                 frictionSlip: 1,
                 dampingRelaxation: 2.3,
                 dampingCompression: 4.4,
@@ -532,7 +533,7 @@
             controls: {
               "Shifter": {
                 hovering: false,
-                bounds: [-2.2, -2.7, -0.45, -0.8]
+                bounds: [-2, -3, -0.2, -0.6]
               },
               "Lever_L": {
                 hovering: false,
@@ -798,6 +799,7 @@
           },
           updateView: function(deltaTime, time) {
             const view = vehicle.views[vehicle.currentView];
+            camera.fov = 45 + (vehicle.currentVehicleSpeedKmHour / 10);
             if (vehicle.currentView == 0) {
               const oldRotation = eulers[1].copy(camera.rotation);
               const offsetX = Math.min(vehicle.speed * vehicle.body.angularVelocity.y / 300, 0.2);
@@ -982,6 +984,7 @@
         map: {
           trafficCone: null,
           trafficCones: [],
+          propCars: [],
           initialize: function() {
             new THREE.GLTFLoader(loadingManager).load("models/parking-lots/main.glb", function(model) {
               map = model.scene;
@@ -1049,6 +1052,23 @@
             const entry = { mesh: trafficCone, body: body };
             physicsBodies.push(entry);
             utils.map.trafficCones.push(entry);
+          },
+          addPropCar: function(x, y, z, ry) {
+            const propCarMesh = propCars[Math.floor(Math.random() * propCars.length)].clone();
+            const propCar = new THREE.Group();
+            propCar.add(propCarMesh);
+            propCarMesh.rotation.set(0, 0, 0);
+            propCarMesh.scale.set(0.6, 0.6, 0.6);
+            propCarMesh.center();
+            const size = new THREE.Box3().setFromObject(propCar).getSize(new THREE.Vector3());
+            const body = new CANNON.Body({ mass: 50, shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)) });
+            body.position.set(x, y, z);
+            body.quaternion.setFromEuler(-Math.PI/2, ry, 0);
+            world.add(body);
+            scene.add(propCar);
+            const entry = { mesh: propCar, body: body };
+            physicsBodies.push(entry);
+            utils.map.propCars.push(entry);
           },
           removeTrafficCone: function(trafficCone) {
             world.remove(trafficCone.body);
@@ -1125,7 +1145,7 @@
             }).then(function(e) {
               if (e) {
                 utils.game.resetLevel();
-              } else if (e != null) {
+              } else {
                 location.replace("/");
               }
             });
@@ -1140,7 +1160,7 @@
             }
             const lowestDistance = Math.min(...distances);
             const highestDistance = Math.max(...distances);
-            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return;
+            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return Notiflix.Notify.failure("You are not in the parking spot.");
             const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(utils.data.timeLeft / utils.data.levelTime, 5) * 5), 10), 0));
             utils.data.allowedToUseControls = false;
             document.exitPointerLock();
@@ -1359,7 +1379,6 @@
             ctx.font = "12px Toxigenesis";
             ctx.fillText("mph", 90, window.innerHeight - 74);
             ctx.fillText(utils.data.currentGear + 1, 90, window.innerHeight - 58);
-
             ctx.strokeStyle = "#ffffff";
             ctx.beginPath();
             ctx.moveTo(window.innerWidth - 50, window.innerHeight - 20);
@@ -1386,7 +1405,7 @@
               ctx.fillText("D", window.innerWidth - 36, window.innerHeight - 52);
             }
             ctx.fillStyle = "#ffffff";
-
+            ctx.textAlign = "center";
             if (utils.data.countdown) {
               if (utils.data.timeLeft <= 0) {
                 if (utils.data.allowedToUseControls) utils.game.gameOver("time");
@@ -1417,6 +1436,11 @@
               ctx.font = "50px Toxigenesis";
               ctx.fillText(levelTime, window.innerWidth / 2, 50 + 10);
             }
+            ctx.textAlign = "left";
+            ctx.font = "22px Toxigenesis";
+            ctx.fillStyle = "#dddddd";
+            ctx.fillText("Level 1", 20, window.innerHeight - 202);
+            ctx.fillText("12 PTS", 20, window.innerHeight - 180);
             ctx.restore();
           }
         }
