@@ -799,7 +799,7 @@
           },
           updateView: function(deltaTime, time) {
             const view = vehicle.views[vehicle.currentView];
-            camera.fov = 45 + (vehicle.currentVehicleSpeedKmHour / 10);
+            camera.fov = 45 + (vehicle.currentVehicleSpeedKmHour / 20);
             if (vehicle.currentView == 0) {
               const oldRotation = eulers[1].copy(camera.rotation);
               const offsetX = Math.min(vehicle.speed * vehicle.body.angularVelocity.y / 300, 0.2);
@@ -1054,16 +1054,18 @@
             utils.map.trafficCones.push(entry);
           },
           addPropCar: function(x, y, z, ry) {
-            const propCarMesh = propCars[Math.floor(Math.random() * propCars.length)].clone();
+            const _propCars = propCars.filter(x=>{a=new THREE.Box3().setFromObject(x).getSize(new THREE.Vector3());return a.x<8&&a.z<8});
+            const propCarMesh = _propCars[Math.floor(Math.random() * _propCars.length)].clone();
             const propCar = new THREE.Group();
             propCar.add(propCarMesh);
+            propCarMesh.position.set(0, 0, 0);
             propCarMesh.rotation.set(0, 0, 0);
-            propCarMesh.scale.set(0.6, 0.6, 0.6);
-            propCarMesh.center();
+            propCarMesh.scale.set(0.65, 0.65, 0.65);
+            propCarMesh.position.sub(new THREE.Box3().setFromObject(propCarMesh).getCenter(new THREE.Vector3()));
             const size = new THREE.Box3().setFromObject(propCar).getSize(new THREE.Vector3());
-            const body = new CANNON.Body({ mass: 50, shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)) });
+            const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)) });
             body.position.set(x, y, z);
-            body.quaternion.setFromEuler(-Math.PI/2, ry, 0);
+            body.quaternion.setFromEuler(-Math.PI / 2, ry, 0);
             world.add(body);
             scene.add(propCar);
             const entry = { mesh: propCar, body: body };
@@ -1084,6 +1086,7 @@
           levels: [
             { time: 30, spawnPoint: [-5,1,2,0,Math.PI/2,0] },
             { time: 25, spawnPoint: [-6,1,0,0,-Math.PI/2,0] },
+            { time: 25, spawnPoint: [0,1,0,0,Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             function next() {
@@ -1115,6 +1118,8 @@
                   child.material.map.needsUpdate = true;
                 } else if (child.name.includes("Traffic_Cone")) {
                   utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z);
+                } else if (child.name.includes("PropCar")) {
+                  utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y);
                 }
               });
               utils.game.parkingLot.corners = {
@@ -1160,7 +1165,7 @@
             }
             const lowestDistance = Math.min(...distances);
             const highestDistance = Math.max(...distances);
-            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return Notiflix.Notify.failure("You are not in the parking spot.");
+            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return Notiflix.Notify.failure("You are not in the parking spot."), false;
             const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(utils.data.timeLeft / utils.data.levelTime, 5) * 5), 10), 0));
             utils.data.allowedToUseControls = false;
             document.exitPointerLock();
@@ -1180,11 +1185,13 @@
               button: "Next level ⤳",
               closeOnClickOutside: false,
               closeOnEsc: false,
+              closeOnEnterKey: false
             }).then(function() {
               utils.game.loadLevel(utils.game.currentLevel + 1);
             });
             document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
             sounds.success();
+            return true;
           },
           startTimer: function() {
             utils.data.countdown = false;
@@ -1315,7 +1322,8 @@
                   }
                 }
               }
-              if (transmission == utils.data.currentTransmission || (transmission == "park" && vehicle.speed > 1)) return;
+              if (transmission == utils.data.currentTransmission) return;
+              if (transmission == "park" && vehicle.speed > 1) return Notiflix.Notify.warning("You're going too fast to park.");
               if (utils.data.currentTransmission == "reverse") {
                 utils.vehicle.setLights(false, "reverse");
                 if (vehicle.hasControlScreen && vehicle.hasBackupCamera) {
@@ -1342,7 +1350,7 @@
                 utils.data.currentTransmission = "park";
                 vehicle.parts.Shifter.rotation.x = 0.4;
                 sounds.controlClick();
-                utils.game.park();
+                return utils.game.park();
               }
             }
           }
@@ -1473,6 +1481,12 @@
           if (event.key == "p") utils.game.controls.shift("park");
           if (event.key == "r") utils.game.controls.shift("reverse");
           if (event.key == "d") utils.game.controls.shift("drive");
+          if (event.key == "Enter") {
+            event.preventDefault();
+            const transmission = utils.data.currentTransmission;
+            const parked = utils.game.controls.shift("park");
+            if (!parked) utils.game.controls.shift(transmission);
+          }
         }
       });
       document.addEventListener("keyup", function(event) {
