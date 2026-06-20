@@ -200,7 +200,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Mini_Cooper";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -1033,6 +1033,87 @@
                 }
               });
               map.remove(collisionMap);
+
+
+shape2mesh = function(body){
+    var wireframe = false;
+    var obj = new THREE.Object3D();
+    for (var l = 0; l < body.shapes.length; l++) {
+        var shape = body.shapes[l];
+        var mesh;
+        switch(shape.type){
+        case CANNON.Shape.types.HEIGHTFIELD:
+            var geometry = new THREE.BufferGeometry();
+            var vertices = [];
+            var v0 = new CANNON.Vec3();
+            var v1 = new CANNON.Vec3();
+            var v2 = new CANNON.Vec3();
+            for (var xi = 0; xi < shape.data.length - 1; xi++) {
+                for (var yi = 0; yi < shape.data[xi].length - 1; yi++) {
+                    for (var k = 0; k < 2; k++) {
+                        shape.getConvexTrianglePillar(xi, yi, k===0);
+                        v0.copy(shape.pillarConvex.vertices[0]);
+                        v1.copy(shape.pillarConvex.vertices[1]);
+                        v2.copy(shape.pillarConvex.vertices[2]);
+                        v0.vadd(shape.pillarOffset, v0);
+                        v1.vadd(shape.pillarOffset, v1);
+                        v2.vadd(shape.pillarOffset, v2);
+                        vertices.push(v0.x, v0.y, v0.z, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
+                    }
+                }
+            }
+            let finalVertices = new Float32Array(vertices);
+            geometry.setAttribute( 'position', new THREE.BufferAttribute( finalVertices, 3 ) );
+            geometry.computeBoundingSphere();
+            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial());
+            break;
+        default:
+            throw "Visual type not recognized: "+shape.type;
+        }
+
+        var o = body.shapeOffsets[l];
+        var q = body.shapeOrientations[l];
+        mesh.position.set(o.x, o.y, o.z);
+        mesh.quaternion.set(q.x, q.y, q.z, q.w);
+
+        obj.add(mesh);
+    }
+
+    return obj;
+}
+addVisual = function(body){
+    var mesh = shape2mesh(body);
+    if(mesh) {
+        physicsBodies.push({body:body,mesh:mesh});
+        body.visualref = mesh;
+        scene.add(mesh);
+    }
+};
+            var matrix = [];
+            var sizeX = 50,
+                sizeY = 50;
+
+            for (var i = 0; i < sizeX; i++) {
+                matrix.push([]);
+                for (var j = 0; j < sizeY; j++) {
+                    var height = Math.cos(i / sizeX * Math.PI * 5) * Math.cos(j/sizeY * Math.PI * 5) * 2 + 2;
+                    if(i===0 || i === sizeX-1 || j===0 || j === sizeY-1)
+                        height = 3;
+height/=18;
+                    matrix[i].push(height);
+                }
+            }
+
+            var hfShape = new CANNON.Heightfield(matrix, { elementSize: 100 / sizeX });
+            var hfBody = new CANNON.Body({ mass: 0 });
+            hfBody.addShape(hfShape);
+hfBody.position.set(-50,-.1,50);
+hfBody.quaternion.setFromEuler(-Math.PI/2,0,0)
+world.add(hfBody);
+// addVisual(hfBody);
+
+
+
               sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false }));
               sky.rotation.y = 2.2;
               scene.add(sky);
