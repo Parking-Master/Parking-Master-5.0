@@ -38,6 +38,10 @@
       }
       .swal-text {
         color: #fff;
+        text-align: center;
+      }
+      .swal-icon img {
+        width: 75px;
       }
       .swal-footer {
         display: flex;
@@ -200,7 +204,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Mini_Cooper";
+      let chosenVehicle = "Honda_Civic";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -235,6 +239,7 @@
         if (frameCount % 3 == 0) utils.ui.update(deltaTime, time);
 
         for (let i = 0; i < physicsBodies.length; i++) {
+          if (physicsBodies[i].fixedPosition) physicsBodies[i].body.position.copy(physicsBodies[i].fixedPosition), physicsBodies[i].body.quaternion.copy(physicsBodies[i].fixedRotation);
           physicsBodies[i].mesh.position.copy(physicsBodies[i].body.position);
           physicsBodies[i].mesh.quaternion.copy(physicsBodies[i].body.quaternion);
         }
@@ -987,7 +992,7 @@
           levelCollisionMap: [],
           currentSkyType: null,
           initialize: function() {
-            new THREE.GLTFLoader(loadingManager).load("models/parking-lots/main.glb", function(model) {
+            new THREE.GLTFLoader(loadingManager).load("models/levels/main.glb", function(model) {
               map = model.scene;
               utils.map.trafficCone = map.getObjectByName("Traffic_Cone");
               const cars = map.getObjectByName("PropCars").children;
@@ -1033,92 +1038,39 @@
                 }
               });
               map.remove(collisionMap);
-
-
-shape2mesh = function(body){
-    var wireframe = false;
-    var obj = new THREE.Object3D();
-    for (var l = 0; l < body.shapes.length; l++) {
-        var shape = body.shapes[l];
-        var mesh;
-        switch(shape.type){
-        case CANNON.Shape.types.HEIGHTFIELD:
-            var geometry = new THREE.BufferGeometry();
-            var vertices = [];
-            var v0 = new CANNON.Vec3();
-            var v1 = new CANNON.Vec3();
-            var v2 = new CANNON.Vec3();
-            for (var xi = 0; xi < shape.data.length - 1; xi++) {
-                for (var yi = 0; yi < shape.data[xi].length - 1; yi++) {
-                    for (var k = 0; k < 2; k++) {
-                        shape.getConvexTrianglePillar(xi, yi, k===0);
-                        v0.copy(shape.pillarConvex.vertices[0]);
-                        v1.copy(shape.pillarConvex.vertices[1]);
-                        v2.copy(shape.pillarConvex.vertices[2]);
-                        v0.vadd(shape.pillarOffset, v0);
-                        v1.vadd(shape.pillarOffset, v1);
-                        v2.vadd(shape.pillarOffset, v2);
-                        vertices.push(v0.x, v0.y, v0.z, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
-                    }
-                }
-            }
-            let finalVertices = new Float32Array(vertices);
-            geometry.setAttribute( 'position', new THREE.BufferAttribute( finalVertices, 3 ) );
-            geometry.computeBoundingSphere();
-            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial());
-            break;
-        default:
-            throw "Visual type not recognized: "+shape.type;
-        }
-
-        var o = body.shapeOffsets[l];
-        var q = body.shapeOrientations[l];
-        mesh.position.set(o.x, o.y, o.z);
-        mesh.quaternion.set(q.x, q.y, q.z, q.w);
-
-        obj.add(mesh);
-    }
-
-    return obj;
-}
-addVisual = function(body){
-    var mesh = shape2mesh(body);
-    if(mesh) {
-        physicsBodies.push({body:body,mesh:mesh});
-        body.visualref = mesh;
-        scene.add(mesh);
-    }
-};
-            var matrix = [];
-            var sizeX = 50,
-                sizeY = 50;
-
-            for (var i = 0; i < sizeX; i++) {
-                matrix.push([]);
-                for (var j = 0; j < sizeY; j++) {
-                    var height = Math.cos(i / sizeX * Math.PI * 5) * Math.cos(j/sizeY * Math.PI * 5) * 2 + 2;
-                    if(i===0 || i === sizeX-1 || j===0 || j === sizeY-1)
-                        height = 3;
-height/=18;
-                    matrix[i].push(height);
-                }
-            }
-
-            var hfShape = new CANNON.Heightfield(matrix, { elementSize: 100 / sizeX });
-            var hfBody = new CANNON.Body({ mass: 0 });
-            hfBody.addShape(hfShape);
-hfBody.position.set(-50,-.1,50);
-hfBody.quaternion.setFromEuler(-Math.PI/2,0,0)
-world.add(hfBody);
-// addVisual(hfBody);
-
-
-
               sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false }));
               sky.rotation.y = 2.2;
               scene.add(sky);
               utils.game.loadLevel(1);
             });
+          },
+          addPropCar: function(x, y, z, ry) {
+            const _propCars = propCars.filter(x=>{a=new THREE.Box3().setFromObject(x).getSize(new THREE.Vector3());return a.x<8&&a.z<8});
+            const propCarMesh = _propCars[Math.floor(Math.random() * _propCars.length)].clone();
+            const propCar = new THREE.Group();
+            propCar.add(propCarMesh);
+            propCarMesh.position.set(0, 0, 0);
+            propCarMesh.rotation.set(0, 0, 0);
+            propCarMesh.scale.set(0.65, 0.65, 0.65);
+            propCarMesh.position.sub(new THREE.Box3().setFromObject(propCarMesh).getCenter(new THREE.Vector3()));
+            const size = new THREE.Box3().setFromObject(propCar).getSize(new THREE.Vector3());
+            const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)) });
+            body.position.set(x, y, z);
+            body.quaternion.setFromEuler(-Math.PI / 2, 0, ry);
+            world.add(body);
+            scene.add(propCar);
+            const entry = { mesh: propCar, body: body };
+            physicsBodies.push(entry);
+            utils.map.propCars.push(entry);
+          },
+          removePropCar: function(propCar) {
+            world.remove(propCar.body);
+            scene.remove(propCar.mesh);
+            physicsBodies.splice(physicsBodies.indexOf(propCar), 1);
+            utils.map.propCars.splice(utils.map.propCars.indexOf(propCar), 1);
+          },
+          removeAllPropCars: function(propCar) {
+            for (let i = utils.map.propCars.length - 1; i >= 0; i--) utils.map.removePropCar(utils.map.propCars[i]);
           },
           addTrafficCone: function(x, y, z) {
             let trafficCone = null;
@@ -1136,30 +1088,17 @@ world.add(hfBody);
             physicsBodies.push(entry);
             utils.map.trafficCones.push(entry);
           },
-          addPropCar: function(x, y, z, ry) {
-            const _propCars = propCars.filter(x=>{a=new THREE.Box3().setFromObject(x).getSize(new THREE.Vector3());return a.x<8&&a.z<8});
-            const propCarMesh = _propCars[Math.floor(Math.random() * _propCars.length)].clone();
-            const propCar = new THREE.Group();
-            propCar.add(propCarMesh);
-            propCarMesh.position.set(0, 0, 0);
-            propCarMesh.rotation.set(0, 0, 0);
-            propCarMesh.scale.set(0.65, 0.65, 0.65);
-            propCarMesh.position.sub(new THREE.Box3().setFromObject(propCarMesh).getCenter(new THREE.Vector3()));
-            const size = new THREE.Box3().setFromObject(propCar).getSize(new THREE.Vector3());
-            const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)) });
-            body.position.set(x, y, z);
-            body.quaternion.setFromEuler(-Math.PI / 2, ry, 0);
-            world.add(body);
-            scene.add(propCar);
-            const entry = { mesh: propCar, body: body };
-            physicsBodies.push(entry);
-            utils.map.propCars.push(entry);
-          },
           removeTrafficCone: function(trafficCone) {
             world.remove(trafficCone.body);
             scene.remove(trafficCone.mesh);
             physicsBodies.splice(physicsBodies.indexOf(trafficCone), 1);
             utils.map.trafficCones.splice(utils.map.trafficCones.indexOf(trafficCone), 1);
+          },
+          addDefaultTrafficCones: function() {
+            for (let i = 0; i < 6; i++) utils.map.addTrafficCone(28, 1, 4 - (i * 2));
+          },
+          removeAllTrafficCones: function() {
+            for (let i = utils.map.trafficCones.length - 1; i >= 0; i--) utils.map.removeTrafficCone(utils.map.trafficCones[i]);
           },
           useLevelAsMap: function() {
             const box = new THREE.Box3();
@@ -1217,6 +1156,7 @@ world.add(hfBody);
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
+            const isBonusLevel = level % 4 == 0;
             function next() {
               for (key in keyStates) keyStates[key] = false;
               utils.game.controls.stopBrake();
@@ -1227,30 +1167,41 @@ world.add(hfBody);
               const spawnPoint = levelData.spawnPoint;
               vehicle.body.position.set(spawnPoint[0], spawnPoint[1], spawnPoint[2]);
               vehicle.body.quaternion.setFromEuler(spawnPoint[3], spawnPoint[4], spawnPoint[5]);
+              utils.game.parkingLot.traverse(child => child.name.includes("Traffic_Cone") && utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z));
               if (swal.getState().isOpen) swal.close();
               document.querySelector(".loading").style.opacity = 0;
               utils.game.startTimer();
               utils.data.allowedToUseControls = true;
             }
+            console.log(!isBonusLevel)
+            utils.map.removeAllTrafficCones();
+            if (!isBonusLevel) utils.map.addDefaultTrafficCones();
             if (level == utils.game.currentLevel) return next();
             previousProgress = 0;
             document.querySelector(".loading").style.opacity = 1;
             document.querySelector(".progress-bar").style.width = "";
             utils.game.currentLevel = level;
-            const isBonusLevel = level % 4 == 0;
             const levelModel = isBonusLevel ? ("bonus" + (level / 4)) : "lvl" + level;
-            new THREE.GLTFLoader(loadingManager).load("models/parking-lots/" + levelModel + ".glb", function(model) {
+            new THREE.GLTFLoader(loadingManager).load("models/levels/" + levelModel + ".glb", function(model) {
               if (utils.game.parkingLot != null) scene.remove(utils.game.parkingLot);
               utils.game.parkingLot = model.scene;
+              utils.game.parkingLot.spots = {};
               utils.game.parkingLot.traverse(child => {
                 if (isBonusLevel && child.material && child.material.map) child.material.map.anisotropy = 4, child.material.map.needsUpdate = true;
-                if (child.name.includes("Parking_Spot_Lines")) {
+                if (child.name.includes("Lines") || child.name.includes("RoadMarks")) {
                   child.material.map.anisotropy = 16;
                   child.material.map.needsUpdate = true;
-                } else if (child.name.includes("Traffic_Cone")) {
-                  utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z);
                 } else if (child.name.includes("PropCar")) {
                   utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y);
+                } else if (child.name.includes("Parking_Spot")) {
+                  const type = child.name.split("_").pop();
+                  utils.game.parkingLot.spots[type] = {
+                    type: type,
+                    corners: {}
+                  };
+                  child.traverse(child => {
+                    if (child.name.startsWith("Marker_")) utils.game.parkingLot.spots[type].corners[child.name.split("_")[1].toLowerCase()] = child.position;
+                  });
                 }
               });
               if (isBonusLevel) {
@@ -1258,12 +1209,6 @@ world.add(hfBody);
               } else {
                 utils.map.useDefaultMap();
               }
-              utils.game.parkingLot.corners = {
-                fl: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_FL").position,
-                fr: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_FR").position,
-                rl: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_RL").position,
-                rr: utils.game.parkingLot.getObjectByName("Parking_Spot_Marker_RR").position
-              };
               scene.add(utils.game.parkingLot);
               if (levelData.directionalLight) {
                 directionalLight.color.setHex(levelData.directionalLight[0]);
@@ -1306,10 +1251,11 @@ world.add(hfBody);
           },
           park: function() {
             const distances = [];
+            const parkingSpot = utils.game.getParkingSpot();
             for (corner in vehicle.corners) {
               const axis = vehicle.corners[corner].clone().applyQuaternion(vehicle.mesh.quaternion);
               const cornerPosition = new THREE.Vector3().copy(vehicle.mesh.position).add(axis);
-              const cornerDistance = cornerPosition.distanceTo(utils.game.parkingLot.corners[corner]);
+              const cornerDistance = cornerPosition.distanceTo(parkingSpot.corners[corner]);
               distances.push(cornerDistance);
             }
             const lowestDistance = Math.min(...distances);
@@ -1319,17 +1265,27 @@ world.add(hfBody);
             utils.data.allowedToUseControls = false;
             document.exitPointerLock();
             PointerControls.isLocked = false;
-            let texts = ["Good job!", "Nice job!", "Great!", "Awesome!"];
+            let icon = null;
+            let title = null;
             let text = "";
-            if (score < 5) {
-              text = "Good";
-            } else if (score < 10) {
-              text = texts[Math.floor(Math.random() * texts.length)];
-            } else {
-              text = "Perfect!";
+            if (parkingSpot.type == "defaultSpot") {
+              let texts = ["Good job!", "Nice job!", "Great!", "Awesome!"];
+              if (score < 5) {
+                text = "Good";
+              } else if (score < 10) {
+                text = texts[Math.floor(Math.random() * texts.length)];
+              } else {
+                icon = "images/cars/Mini_Cooper.png";
+                text = "Perfect!";
+              }
+              title = "10/10";
+            } else if (parkingSpot.type == "blueSpot") {
+              icon = "images/bluespot.png";
+              text = "You parked in a bluespot! You earned an extra point.";
             }
             swal({
-              title: "10/10",
+              icon: icon,
+              title: title,
               text: text,
               button: "Next level ⤳",
               closeOnClickOutside: false,
@@ -1338,9 +1294,22 @@ world.add(hfBody);
             }).then(function() {
               utils.game.loadLevel(utils.game.currentLevel + 1);
             });
-            document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
+            if (title) document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
             sounds.success();
             return true;
+          },
+          getParkingSpot: function() {
+            let closestSpot = null;
+            let closestSpotDistance = null;
+            for (type in utils.game.parkingLot.spots) {
+              const arrayCorners = Object.values(utils.game.parkingLot.spots[type].corners);
+              const distance = arrayCorners.reduce((a, b) => a.clone().add(b)).divide(new THREE.Vector3(arrayCorners.length, arrayCorners.length, arrayCorners.length)).distanceTo(vehicle.body.position);
+              if (!closestSpot || distance < closestSpotDistance) {
+                closestSpot = utils.game.parkingLot.spots[type];
+                closestSpotDistance = distance;
+              }
+            }
+            return closestSpot;
           },
           startTimer: function() {
             utils.data.countdown = false;
@@ -1356,16 +1325,12 @@ world.add(hfBody);
             vehicle.parts.Windows.material.emissive.setHex(0x000000);
             utils.game.controls.switchView(vehicle.currentView);
             utils.vehicle.setInstruments(false, "Airbag");
-            for (let i = utils.map.trafficCones.length - 1; i >= 0; i--) utils.map.removeTrafficCone(utils.map.trafficCones[i]);
-            for (let i = 0; i < 6; i++) utils.map.addTrafficCone(28, 1, 4 - (i * 2));
-            utils.game.parkingLot.traverse(child => child.name.includes("Traffic_Cone") && utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z));
+            utils.map.removeAllPropCars();
+            utils.game.parkingLot.traverse(child => child.name.includes("PropCar") && utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y));
             utils.game.loadLevel(utils.game.currentLevel);
           },
           start: function() {
             renderer.shadowMap.needsUpdate = true;
-            for (let i = 0; i < 6; i++) {
-              utils.map.addTrafficCone(28, 1, 4 - (i * 2));
-            }
             utils.game.controls.switchView(0);
             animate();
             sounds.startup();
@@ -1393,7 +1358,7 @@ world.add(hfBody);
                 vehicle.parts.Exterior.visible = true;
                 vehicle.parts.Exterior_View.visible = true;
                 vehicle.parts.Mirror_L.material.map = null;
-                vehicle.parts.Mirror_L.envMap = utils.vehicle.envMap;
+                vehicle.parts.Mirror_L.material.envMap = utils.vehicle.envMap;
                 vehicle.parts.Mirror_L.material.needsUpdate = true;
                 vehicle.parts.Windows.material.opacity = 0.7;
                 vehicle.parts.Windows.material.color.b = 0.14;
