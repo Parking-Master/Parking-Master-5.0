@@ -99,9 +99,9 @@
       }
       .howtoplay {
         position: absolute;
-        height: 160px;
-        right: 20px;
-        bottom: 200px;
+        height: 100px;
+        right: 70px;
+        bottom: 20px;
         z-index: 10;
       }
     </style>
@@ -112,6 +112,7 @@
     <script src="scripts/DecalGeometry.js"></script>
     <script src="scripts/cannon.js"></script>
     <script src="scripts/PointerLockControls.js"></script>
+    <script src="scripts/GamepadControls.js"></script>
     <script src="scripts/particles.js"></script>
     <script src="scripts/sounds.js"></script>
     <script src="scripts/sweetalert.js"></script>
@@ -191,7 +192,7 @@
 
       const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3()];
       const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
-      const quaternions = [new CANNON.Quaternion()];
+      const quaternions = [new CANNON.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
       const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
       const objects = {};
       const loadingManager = new THREE.LoadingManager();
@@ -226,6 +227,7 @@
         const time = Date.now();
         world.step(deltaTime);
 
+        GamepadControls.update();
         utils.vehicle.updatePhysics(deltaTime);
         utils.vehicle.updateSteering(deltaTime);
         utils.vehicle.updateThrottle(deltaTime, time);
@@ -350,6 +352,9 @@
           levelTime: 120,
           levelStartTime: null,
           timeLeft: null,
+          initialViewSwitch: false,
+          steerPowerCoefficient: 1,
+          isUsingKeyboard: true
         },
         vehicles: {
           "Honda_Civic": {
@@ -398,7 +403,7 @@
             currentControl: null,
             views: [
               [0.35, 0.35, -0.2, 0, Math.PI, 0],
-              [0, 1.1, -6, 0.08, Math.PI, 0],
+              [0, 0.65, 6, 0.08, Math.PI, 0],
               [1.2, 0, -3, 0.05, Math.PI, 0],
               [0, 0.4, 4.5, -0.1, 0, 0]
             ],
@@ -450,7 +455,7 @@
             currentControl: null,
             views: [
               [0.35, 0.52, -0.1, 0, Math.PI, 0],
-              [0, 1.2, -6, 0.08, Math.PI, 0],
+              [0, 0.7, 6, 0.08, Math.PI, 0],
               [1.3, 0, -3.2, 0.05, Math.PI, 0],
               [0, 0.6, 5, -0.05, 0, 0]
             ],
@@ -502,7 +507,7 @@
             currentControl: null,
             views: [
               [0.33, 0.4, -0.3, 0, Math.PI, 0],
-              [0, 1.1, -5.8, 0.12, 3.141592653589793, 0],
+              [0, 0.6, 5.9, 0.12, 3.141592653589793, 0],
               [1.3, 0, -3.2, 0.05, Math.PI, 0],
               [0, 0.55, 4.8, -0.08, 0, 0]
             ],
@@ -550,7 +555,7 @@
             currentControl: null,
             views: [
               [0.4, 0.35, 0, 0, 3.141592653589793, 0],
-              [0, 1.15, -6.1, 0.12, 3.141592653589793, 0],
+              [0, 0.5, 6.2, 0.12, 3.141592653589793, 0],
               [1.3, 0, -3.3, 0.05, Math.PI, 0],
               [0, 0.5, 5, -0.08, 0, 0]
             ],
@@ -692,7 +697,8 @@
             if (vehicle.physics.brake) {
               if (utils.data.timeOfBrake == null) utils.data.timeOfBrake = time;
               const brakeTime = time - utils.data.timeOfBrake;
-              brake = (brakeTime < 700 ? 100 : 100 + Math.min((brakeTime - 700) * deltaTime * 20, 500)) * Math.pow(1 - (vehicle.speedMPH / vehicle.physics.maxSpeedMPH), 4.5) * 0.8;
+              if (utils.data.isUsingKeyboard) brake = brakeTime < 700 ? 100 : 100 + Math.min((brakeTime - 700) * deltaTime * 20, 500);
+              brake *= Math.pow(1 - (vehicle.speedMPH / vehicle.physics.maxSpeedMPH), 4.5) * 0.8;
             } else {
               utils.data.timeOfBrake = null;
               brake = 0;
@@ -720,9 +726,9 @@
           },
           updateSteering: function(deltaTime) {
             if (keyStates["ArrowLeft"] && utils.data.allowedToUseControls) {
-              utils.data.carHeadingIncrement = Math.min(utils.data.carHeadingIncrement + (50 * deltaTime), utils.data.carHeadingMaxIncrement);
+              utils.data.carHeadingIncrement = Math.min(utils.data.carHeadingIncrement + (50 * utils.data.steerPowerCoefficient * deltaTime), utils.data.carHeadingMaxIncrement * utils.data.steerPowerCoefficient);
             } else if (keyStates["ArrowRight"] && utils.data.allowedToUseControls) {
-              utils.data.carHeadingIncrement = Math.max(utils.data.carHeadingIncrement - (50 * deltaTime), -utils.data.carHeadingMaxIncrement);
+              utils.data.carHeadingIncrement = Math.max(utils.data.carHeadingIncrement - (50 * utils.data.steerPowerCoefficient * deltaTime), -utils.data.carHeadingMaxIncrement * utils.data.steerPowerCoefficient);
             } else {
               if (utils.data.carHeadingIncrement < -1 || utils.data.carHeadingIncrement > 1) {
                 utils.data.carHeadingIncrement /= 120 * deltaTime;
@@ -751,7 +757,7 @@
               utils.data.lastThrottle = time;
               if (utils.data.timeOfGas == null) utils.data.timeOfGas = time;
               const engineTime = time - utils.data.timeOfGas;
-              engine = 0.2 + Math.min(engineTime * deltaTime * 0.03, 0.8);
+              if (utils.data.isUsingKeyboard) engine = 0.2 + Math.min(engineTime * deltaTime * 0.03, 0.8);
               const engineForce = engine * vehicle.physics.engineForce * ratio * (utils.data.currentTransmission == "drive" ? -1 : utils.data.currentTransmission == "reverse" ? 1 : 0);
               if (vehicle.physics.drivetrain == "fwd") {
                 vehicle.applyEngineForce(engineForce, 0);
@@ -815,8 +821,22 @@
               camera.rotation.copy(oldRotation);
               camera.rotation.y += vehicle.mesh.rotation.y - utils.data.lastVehicleRotationY;
               utils.data.lastVehicleRotationY = vehicle.mesh.rotation.y;
-              camera.near = 0.01;
-              camera.updateProjectionMatrix();
+              PointerControls.isLocked = true;
+            } else if (vehicle.currentView == 1) {
+              camera.position.copy(vehicle.mesh.position);
+              const rotateAmount = utils.data.initialViewSwitch ? 1 : Math.min(deltaTime * 5, 0.4);
+              const targetQuaternion = quaternions[1].copy(vehicle.mesh.quaternion);
+              quaternions[2].setFromAxisAngle(new THREE.Vector3(1, 0, 0), view[3]);
+              targetQuaternion.multiply(quaternions[2]);
+              quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 1, 0), view[4]);
+              targetQuaternion.multiply(quaternions[2]);
+              quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 0, 1), view[5]);
+              targetQuaternion.multiply(quaternions[2]);
+              camera.quaternion.slerp(targetQuaternion, rotateAmount);
+              camera.translateX(view[0]);
+              camera.translateY(view[1]);
+              camera.translateZ(view[2]);
+              PointerControls.isLocked = false;
             } else {
               camera.position.copy(vehicle.mesh.position);
               camera.rotation.set(0, vehicle.mesh.rotation.y, 0);
@@ -826,9 +846,11 @@
               camera.rotateX(view[3]);
               camera.rotateY(view[4]);
               camera.rotateZ(view[5]);
-              camera.near = 0.1;
-              camera.updateProjectionMatrix();
+              PointerControls.isLocked = false;
             }
+            utils.data.initialViewSwitch = false;
+            camera.near = 0.1;
+            camera.updateProjectionMatrix();
           },
           updateLights: function(time) {
             if (utils.data.blinker) {
@@ -1275,13 +1297,14 @@
               } else if (score < 10) {
                 text = texts[Math.floor(Math.random() * texts.length)];
               } else {
-                icon = "images/cars/Mini_Cooper.png";
                 text = "Perfect!";
               }
               title = "10/10";
             } else if (parkingSpot.type == "blueSpot") {
               icon = "images/bluespot.png";
               text = "You parked in a bluespot! You earned an extra point.";
+            } else if (parkingSpot.type == "specialSpot") {
+              icon = "images/cars/Mini_Cooper.png";
             }
             swal({
               icon: icon,
@@ -1352,7 +1375,6 @@
                 vehicle.parts.Windows.material.color.b = 0.6;
                 vehicle.parts.Windows.material.depthWrite = false;
                 utils.vehicle.backupRenderTarget.initialUpdate = true;
-                PointerControls.isLocked = true;
               } else {
                 vehicle.parts.Interior.visible = false;
                 vehicle.parts.Exterior.visible = true;
@@ -1363,8 +1385,8 @@
                 vehicle.parts.Windows.material.opacity = 0.7;
                 vehicle.parts.Windows.material.color.b = 0.14;
                 vehicle.parts.Windows.material.depthWrite = true;
-                PointerControls.isLocked = false;
               }
+              utils.data.initialViewSwitch = true;
               vehicle.currentView = newView;
             },
             brake: function() {
@@ -1466,6 +1488,11 @@
                 sounds.controlClick();
                 return utils.game.park();
               }
+            },
+            simplePark: function() {
+              const transmission = utils.data.currentTransmission;
+              const parked = utils.game.controls.shift("park");
+              if (!parked) utils.game.controls.shift(transmission);
             }
           }
         },
@@ -1605,12 +1632,7 @@
           if (event.key == "p") utils.game.controls.shift("park");
           if (event.key == "r") utils.game.controls.shift("reverse");
           if (event.key == "d") utils.game.controls.shift("drive");
-          if (event.key == "Enter") {
-            event.preventDefault();
-            const transmission = utils.data.currentTransmission;
-            const parked = utils.game.controls.shift("park");
-            if (!parked) utils.game.controls.shift(transmission);
-          }
+          if (event.key == "Enter") event.preventDefault(), utils.game.controls.simplePark();
         }
       });
       document.addEventListener("keyup", function(event) {
