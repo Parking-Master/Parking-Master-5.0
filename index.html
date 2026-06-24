@@ -20,6 +20,7 @@
       }
       .ui {
         z-index: 10;
+        pointer-events: none !important;
       }
       .swal-overlay {
         background: rgba(0, 0, 0, 0.2);
@@ -103,7 +104,78 @@
         right: 70px;
         bottom: 20px;
         z-index: 10;
+        pointer-events: none !important;
       }
+
+      .mobile-ui {
+        position: absolute;
+        z-index: 9998;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        display: none;
+      }
+      .mobile-ui * {
+        pointer-events: auto;
+        user-select: none !important;
+      }
+      .mobile-ui .pedal {
+        position: absolute;
+        width: 35px;
+        height: 100px;
+        background: #fff;
+        bottom: 60px;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform .5s ease-out;
+        background-image: url(/images/pedal.png);
+        background-repeat: no-repeat;
+        background-size: cover;
+        border-radius: 6px;
+        border: 1px solid #fff;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.24);
+      }
+      .mobile-ui .pedal.left-pedal {
+        right: 70px;
+        pointer-events: none !important;
+      }
+      .mobile-ui .pedal.right-pedal {
+        right: 10px;
+      }
+      .mobile-ui .steering-wheel {
+        position: absolute;
+        bottom: 200px;
+        width: 200px;
+        height: 200px;
+        left: 0;
+        background-image: url(/images/mobile-ui/steering-wheel.png);
+        background-repeat: no-repeat;
+        background-size: cover;
+        filter: drop-shadow(0 0 50px rgba(0, 0, 0, 0.5));
+        transition: transform .1s;
+      }
+      /* .mobile-ui .shifter-box {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 90px;
+        margin-left: -45px;
+        margin-top: 10px;
+        background: #ddd;
+        color: #007AFF;
+        border-radius: 6px;
+        font-size: 20px;
+        text-align: left;
+        overflow-x: hidden;
+        display: none;
+      }
+      .mobile-ui .shifter-box .shifter-box-option {
+        width: 100%;
+        margin: 0;
+        padding: 4px;
+      }
+      .mobile-ui .shifter-box .shifter-box-option.selected {
+        background: #bbb;
+      } */
     </style>
   </head>
   <body>
@@ -113,11 +185,27 @@
     <script src="scripts/cannon.js"></script>
     <script src="scripts/PointerLockControls.js"></script>
     <script src="scripts/GamepadControls.js"></script>
+    <script src="scripts/TouchScreenControls.js"></script>
     <script src="scripts/particles.js"></script>
     <script src="scripts/sounds.js"></script>
     <script src="scripts/sweetalert.js"></script>
     <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <canvas class="ui"></canvas>
+    <div class="mobile-ui">
+      <!-- <div class="context-menu">
+        <button class="toggle-view" ontouchstart="togglePerspective()"><i class="fa fa-camera"></i></button>
+      </div> -->
+      <!-- <div class="pedal-area left-pedal-area"></div> -->
+      <button class="pedal left-pedal"></button>
+      <button class="pedal right-pedal"></button>
+      <div class="steering-wheel"></div>
+      <!-- <div class="shifter-box">
+        <div class="shifter-box-option" data-gear="park" ontouchstart="touchShift(this)">P</div>
+        <div class="shifter-box-option" data-gear="reverse" ontouchstart="touchShift(this)">R</div>
+        <div class="shifter-box-option" data-gear="neutral" ontouchstart="touchShift(this)">N</div>
+        <div class="shifter-box-option selected" data-gear="drive" ontouchstart="touchShift(this)">D</div>
+      </div> -->
+    </div>
     <img class="howtoplay" src="images/howtoplay.png">
     <div class="loading">
       <div class="loading-banner">
@@ -205,7 +293,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Toyota_RAV4";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -239,6 +327,7 @@
         particles.update();
         if (frameCount % 2 == 0) sounds.update(time);
         if (frameCount % 3 == 0) utils.ui.update(deltaTime, time);
+        mobileUI.update();
 
         for (let i = 0; i < physicsBodies.length; i++) {
           if (physicsBodies[i].fixedPosition) physicsBodies[i].body.position.copy(physicsBodies[i].fixedPosition), physicsBodies[i].body.quaternion.copy(physicsBodies[i].fixedRotation);
@@ -824,15 +913,19 @@
               PointerControls.isLocked = true;
             } else if (vehicle.currentView == 1) {
               camera.position.copy(vehicle.mesh.position);
-              const rotateAmount = utils.data.initialViewSwitch ? 1 : Math.min(deltaTime * 5, 0.4);
-              const targetQuaternion = quaternions[1].copy(vehicle.mesh.quaternion);
-              quaternions[2].setFromAxisAngle(new THREE.Vector3(1, 0, 0), view[3]);
-              targetQuaternion.multiply(quaternions[2]);
-              quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 1, 0), view[4]);
-              targetQuaternion.multiply(quaternions[2]);
-              quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 0, 1), view[5]);
-              targetQuaternion.multiply(quaternions[2]);
-              camera.quaternion.slerp(targetQuaternion, rotateAmount);
+              if (GamepadControls.lookingDirection) {
+                camera.rotation.set(vehicle.mesh.rotation.x, vehicle.mesh.rotation.y + (GamepadControls.lookingDirection == "left" ? -Math.PI / 2 : Math.PI / 2), vehicle.mesh.rotation.z);
+              } else {
+                const rotateAmount = utils.data.initialViewSwitch ? 1 : Math.min(deltaTime * 5, 0.4);
+                const targetQuaternion = quaternions[1].copy(vehicle.mesh.quaternion);
+                quaternions[2].setFromAxisAngle(new THREE.Vector3(1, 0, 0), view[3]);
+                targetQuaternion.multiply(quaternions[2]);
+                quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 1, 0), view[4]);
+                targetQuaternion.multiply(quaternions[2]);
+                quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 0, 1), view[5]);
+                targetQuaternion.multiply(quaternions[2]);
+                camera.quaternion.slerp(targetQuaternion, rotateAmount);
+              }
               camera.translateX(view[0]);
               camera.translateY(view[1]);
               camera.translateZ(view[2]);
@@ -1251,7 +1344,7 @@
           },
           gameOver: function(reason = "crash") {
             utils.data.allowedToUseControls = false;
-            document.exitPointerLock();
+            if (document.exitPointerLock) document.exitPointerLock();
             PointerControls.isLocked = false;
             utils.game.controls.stopThrottle();
             utils.game.controls.brake();
@@ -1285,7 +1378,7 @@
             if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return Notiflix.Notify.failure("You are not in the parking spot."), false;
             const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(utils.data.timeLeft / utils.data.levelTime, 5) * 5), 10), 0));
             utils.data.allowedToUseControls = false;
-            document.exitPointerLock();
+            if (document.exitPointerLock) document.exitPointerLock();
             PointerControls.isLocked = false;
             let icon = null;
             let title = null;
@@ -1610,6 +1703,9 @@
       PointerControls.minPolarAngle = 0.15;
       PointerControls.pointerSpeed = 0.6;
       PointerControls.isLocked = false;
+      const TouchControls = new TouchScreenControls(camera, renderer.domElement);
+      // PointerControls.pointerSpeed = 0.6;
+      // TouchControls.isLocked = false;
 
       document.addEventListener("keydown", function(event) {
         if (!utils.data.allowedToUseControls) return;
@@ -1655,6 +1751,101 @@
 
       utils.ui.initialize();
       utils.vehicle.initialize();
+
+
+
+
+let mobile = true;
+if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in document.documentElement)) mobile = true;
+function MobileUI() {
+  let isHoldingWheel = false;
+  const wheel = document.querySelector(".mobile-ui .steering-wheel");
+  this.update = function(heading) {
+    if (!mobile) return;
+    if (isHoldingWheel) {
+      utils.data.carHeadingIncrement = currentRotation < 0 ? utils.data.carHeadingMaxIncrement : -utils.data.carHeadingMaxIncrement;
+    }
+    if (wheel) wheel.style.transform = `rotate(${-utils.data.currentHeading * (120 / 35)}deg)`;
+  };
+
+  if (mobile) {
+    document.body.style.background = "#000";
+    document.querySelector(".mobile-ui .left-pedal").addEventListener("touchstart", function(event) {
+      event.preventDefault();
+      utils.game.controls.brake();
+      this.style.transform = "scale(0.8)";
+    });
+    document.querySelector(".mobile-ui .left-pedal").addEventListener("touchend", function(event) {
+      event.preventDefault();
+      utils.game.controls.stopBrake();
+      this.style.transform = "";
+    });
+    document.querySelector(".mobile-ui .left-pedal").addEventListener("touchcancel", function(event) {
+      event.preventDefault();
+      utils.game.controls.stopBrake();
+      this.style.transform = "";
+    });
+    document.querySelector(".mobile-ui .right-pedal").addEventListener("touchstart", function(event) {
+      event.preventDefault();
+      utils.game.controls.throttle();
+      this.style.transform = "scale(0.8)";
+    });
+    document.querySelector(".mobile-ui .right-pedal").addEventListener("touchend", function(event) {
+      event.preventDefault();
+      utils.game.controls.stopThrottle();
+      this.style.transform = "";
+    });
+    document.querySelector(".mobile-ui .right-pedal").addEventListener("touchcancel", function(event) {
+      event.preventDefault();
+      utils.game.controls.stopThrottle();
+      this.style.transform = "";
+    });
+
+    function getTouchAngle(touch, element) {
+      const rect = element.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = touch.clientX - centerX;
+      const dy = touch.clientY - centerY;
+      return Math.atan2(dy, dx) * (180 / Math.PI) - 90;
+    }
+    let currentRotation = 0;
+    let lastAngle = null;
+    wheel.addEventListener("touchstart", function(event) {
+      for (const touch of event.changedTouches) {
+        if (wheel.contains(touch.target)) {
+          event.preventDefault();
+          isHoldingWheel = true;
+          lastAngle = getTouchAngle(touch, this);
+        }
+      }
+    });
+    wheel.addEventListener("touchmove", function(event) {
+      for (const touch of event.changedTouches) {
+        if (wheel.contains(touch.target)) {
+          event.preventDefault();
+          const curAngle = getTouchAngle(touch, this);
+          let deltaAngle = curAngle - lastAngle;
+          if (deltaAngle > 180) deltaAngle -= 360;
+          if (deltaAngle < -180) deltaAngle += 360;
+          currentRotation += deltaAngle;
+          if (currentRotation > 120) currentRotation = 120;
+          if (currentRotation < -120) currentRotation = -120;
+          const uiTurnRatio = 35 / 120;
+          if (Math.abs(deltaAngle) > 0) {
+            
+          }
+          lastAngle = curAngle;
+        }
+      }
+    });
+    wheel.addEventListener("touchend", function(event) {
+      utils.data.carHeadingIncrement = 0;
+    });
+    document.querySelector(".mobile-ui").style.display = "block";
+  }
+}
+const mobileUI = new MobileUI();
     </script>
   </body>
 </html>

@@ -16,7 +16,8 @@ GamepadControls = {
       handleDirectionalMovement();
       handleButtonEvents();
     }
-  }
+  },
+  lookingDirection: null
 };
 
 let keyCodeMaps = {
@@ -105,25 +106,30 @@ function initButtonStates() {
 let prevGamepads = navigator.getGamepads();
 
 function handleLookMovement() {
-  if (vehicle && vehicle.currentView == 0) {
+  if (vehicle) {
     const lookX = gamepad.axes[2];
     const lookY = gamepad.axes[3];
-    temporaryLookSensitivity = Math.abs(lookX) * (lookSensitivity * GamepadControls.speed);
-    if (Math.abs(lookX) > 0.2) camera.rotation.y -= lookX * lookSpeed;
-    if (Math.abs(lookY) > 0.2) camera.rotation.x -= lookY * lookSpeed;
-    if (Math.abs(lookX) < 0.1 && Math.abs(lookY) < 0.1) {
-      lookSpeed = initialLookSpeed;
-      looking = false;
-    } else {
-      if (lookSpeed < temporaryLookSensitivity / 10) lookSpeed += lookAcceleration;
-      looking = true;
+    if (vehicle.currentView == 0) {
+      temporaryLookSensitivity = Math.abs(lookX) * (lookSensitivity * GamepadControls.speed);
+      if (Math.abs(lookX) > 0.2) camera.rotation.y -= lookX * lookSpeed;
+      if (Math.abs(lookY) > 0.2) camera.rotation.x -= lookY * lookSpeed;
+      if (Math.abs(lookX) < 0.1 && Math.abs(lookY) < 0.1) {
+        lookSpeed = initialLookSpeed;
+      } else {
+        if (lookSpeed < temporaryLookSensitivity / 10) lookSpeed += lookAcceleration;
+      }
+      camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    } else if (vehicle.currentView == 1) {
+      if (Math.abs(lookX) < 0.5 && Math.abs(lookY) < 0.5) {
+        GamepadControls.lookingDirection = null;
+      } else {
+        GamepadControls.lookingDirection = lookX < 0 ? "left" : "right";
+      }
     }
-    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
   }
 }
 
 let stopped = false;
-let looking = false;
 let menuButton = 0;
 let maxButtons = 4;
 let repeatedButton = false;
