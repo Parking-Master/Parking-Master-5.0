@@ -72,6 +72,7 @@ window.addEventListener("gamepadconnected", function(event) {
   initButtonStates();
   utils.data.isUsingKeyboard = false;
   document.querySelector(".howtoplay").src = "images/howtoplay-gamepad.png";
+  document.querySelector(".howtoplay").style.display = "";
 //   if (typeof swal !== "undefined") {
 //     let oldSwal = swal;
 //     swal = function() {
