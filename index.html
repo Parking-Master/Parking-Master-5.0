@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>cannon.js - RaycastVehicle</title>
+    <title>Parking Master 5.0 · Level 1</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
@@ -68,7 +68,6 @@
         width: 100%;
         height: 100%;
         margin: 0;
-        background-image: url(images/loading-screens/1.png);
         background-size: cover;
         background-position: center;
         z-index: 99999;
@@ -131,7 +130,7 @@
         right: 100px;
         width: 100px;
         height: 100px;
-        background-image: url(/images/mobile-ui/left-pedal.png);
+        background-image: url(images/mobile-ui/left-pedal.png);
         background-color: transparent;
         background-repeat: no-repeat;
         background-size: 100px;
@@ -142,7 +141,7 @@
         right: 10px;
         width: 70px;
         height: 160px;
-        background-image: url(/images/mobile-ui/right-pedal.png);
+        background-image: url(images/mobile-ui/right-pedal.png);
         background-color: transparent;
         background-repeat: no-repeat;
         background-size: 70px;
@@ -153,7 +152,7 @@
         width: 200px;
         height: 200px;
         left: 0;
-        background-image: url(/images/mobile-ui/steering-wheel.png);
+        background-image: url(images/mobile-ui/steering-wheel.png);
         background-repeat: no-repeat;
         background-size: cover;
         transition: transform .1s;
@@ -271,6 +270,8 @@
       </div>
     </div>
     <script>
+      document.querySelector(".loading").style.backgroundImage = "url(images/loading-screens/" + Math.floor(Math.random() * 3) + ".png)";
+
       function generateUUID() {
         return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
           let r = Math.random() * 16 | 0;
@@ -719,6 +720,12 @@
             "blinker_l": false,
             "blinker_r": false
           },
+          vehicleNames: {
+            "Honda_Civic": "2019 Honda Civic Sport Touring",
+            "Toyota_RAV4": "2023 Toyota RAV4",
+            "Mini_Cooper": "2014 Mini Cooper S",
+            "Ford_Victoria": "2010 Ford Crown Victoria",
+          },
           cameraBob: function(intensity = 1, maxStep = 2) {
             let step = 0;
             let strength = 0.001;
@@ -968,8 +975,10 @@
               camera.rotation.copy(oldRotation);
               camera.rotation.y += vehicle.mesh.rotation.y - utils.data.lastVehicleRotationY;
               utils.data.lastVehicleRotationY = vehicle.mesh.rotation.y;
-              PointerControls.isLocked = true;
-              TouchControls.isLocked = true;
+              if (utils.data.allowedToUseControls) {
+                PointerControls.isLocked = true;
+                TouchControls.isLocked = true;
+              }
             } else if (vehicle.currentView == 1) {
               camera.position.copy(vehicle.mesh.position);
               if (GamepadControls.lookingDirection) {
@@ -989,7 +998,7 @@
               camera.translateY(view[1]);
               camera.translateZ(view[2]);
               PointerControls.isLocked = false;
-              TouchControls.isLocked = true;
+              TouchControls.isLocked = false;
             } else {
               camera.position.copy(vehicle.mesh.position);
               camera.rotation.set(0, vehicle.mesh.rotation.y, 0);
@@ -1000,7 +1009,7 @@
               camera.rotateY(view[4]);
               camera.rotateZ(view[5]);
               PointerControls.isLocked = false;
-              TouchControls.isLocked = true;
+              TouchControls.isLocked = false;
             }
             utils.data.initialViewSwitch = false;
             camera.near = 0.1;
@@ -1230,7 +1239,7 @@
             propCarMesh.scale.set(0.65, 0.65, 0.65);
             propCarMesh.position.sub(new THREE.Box3().setFromObject(propCarMesh).getCenter(new THREE.Vector3()));
             const size = new THREE.Box3().setFromObject(propCar).getSize(new THREE.Vector3());
-            const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)) });
+            const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3((size.x / 2) - 0.3, (size.y / 2) - 0.3, size.z / 2)) });
             body.position.set(x, y, z);
             body.quaternion.setFromEuler(-Math.PI / 2, 0, ry);
             world.add(body);
@@ -1349,7 +1358,6 @@
               utils.game.startTimer();
               utils.data.allowedToUseControls = true;
             }
-            console.log(!isBonusLevel)
             utils.map.removeAllTrafficCones();
             if (!isBonusLevel) utils.map.addDefaultTrafficCones();
             if (level == utils.game.currentLevel) return next();
@@ -1382,8 +1390,10 @@
               });
               if (isBonusLevel) {
                 utils.map.useLevelAsMap();
+                document.title = "Parking Master 5.0 · Bonus Level";
               } else {
                 utils.map.useDefaultMap();
+                document.title = "Parking Master 5.0 · Level " + level;
               }
               scene.add(utils.game.parkingLot);
               if (levelData.directionalLight) {
@@ -1410,21 +1420,34 @@
             TouchControls.isLocked = true;
             utils.game.controls.stopThrottle();
             utils.game.controls.brake();
-            swal({
-              title: "Game over",
-              text: reason == "crash" ? "You crashed!" : "You ran out of time!",
-              buttons: ["Close", "Try again (10 pts)"],
-              closeOnClickOutside: false,
-              closeOnEsc: false,
-              closeOnEnterKey: false,
-              closeOnSpaceKey: false,
-            }).then(function(e) {
-              if (e) {
-                utils.game.resetLevel();
-              } else {
-                location.replace("/");
-              }
-            });
+            const isBonusLevel = utils.game.currentLevel % 4 == 0;
+            if (isBonusLevel) {
+              swal({
+                text: "You didn't earn any bonus points.",
+                button: "Next level ⤳",
+                closeOnClickOutside: false,
+                closeOnEsc: false,
+                closeOnEnterKey: false
+              }).then(function() {
+                utils.game.loadLevel(utils.game.currentLevel + 1);
+              });
+            } else {
+              swal({
+                title: "Game over",
+                text: reason == "crash" ? "You crashed!" : "You ran out of time!",
+                buttons: ["Close", "Try again (10 pts)"],
+                closeOnClickOutside: false,
+                closeOnEsc: false,
+                closeOnEnterKey: false,
+                closeOnSpaceKey: false,
+              }).then(function(e) {
+                if (e) {
+                  utils.game.resetLevel();
+                } else {
+                  location.replace("/");
+                }
+              });
+            }
           },
           park: function() {
             const distances = [];
@@ -1460,7 +1483,11 @@
               icon = "images/bluespot.png";
               text = "You parked in a bluespot! You earned an extra point.";
             } else if (parkingSpot.type == "specialSpot") {
-              icon = "images/cars/Mini_Cooper.png";
+              const availableCars = ["Mini_Cooper", "Ford_Victoria"];
+              const chosenCar = availableCars[Math.floor(Math.random() * availableCars.length)];
+              icon = "images/cars/" + chosenCar + ".png";
+              text = "You unlocked a new car! You can get in it after this game ends.\n\n" + utils.vehicle.vehicleNames[chosenCar];
+              // Add logic here so that players get points if they already own all cars
             }
             swal({
               icon: icon,
@@ -1472,9 +1499,12 @@
               closeOnEnterKey: false
             }).then(function() {
               utils.game.loadLevel(utils.game.currentLevel + 1);
+              document.querySelector(".swal-icon img").style = "";
             });
             if (title) document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
+            if (parkingSpot.type == "specialSpot") document.querySelector(".swal-icon img").style = "border-radius: 10px; width: 120px; border-bottom: 5px solid gold";
             sounds.success();
+            document.querySelector(".loading").style.backgroundImage = "url(images/loading-screens/" + Math.floor(Math.random() * 3) + ".png)";
             return true;
           },
           getParkingSpot: function() {
@@ -1812,7 +1842,7 @@
         document.body.requestPointerLock();
         PointerControls.lock();
       });
-      document.addEventListener("mouseup", (event) => {
+      document.addEventListener("mouseup", function(event) {
         if (!utils.data.allowedToUseControls) return;
         if (!PointerControls.isLocked) return;
         PointerControls.lock();
