@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Master 5.0 · All cars</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <style>
+      html, body {
+        font-family: "Roboto", Arial;
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden !important;
+      }
+      .tabs {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        margin: 0;
+        width: 100%;
+        z-index: 3;
+        overflow-x: scroll;
+        white-space: nowrap;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        padding-bottom: 10px;
+      }
+      .tabs::-webkit-scrollbar { 
+        display: none;
+      }
+      .tabs .tab {
+        display: inline-block;
+        border-left: 1px solid #ccc;
+        text-align: center;
+        width: 250px;
+        padding: 6px;
+        margin: 0;
+        color: #333;
+        font-size: 20px;
+        box-shadow: 5px 0 10px 2px rgba(100, 100, 100, 0.3);
+        background: #fff;
+        cursor: pointer !important;
+      }
+      .tabs .tab:hover:not(.car-brand-focused) {
+        background: #bbb;
+        color: #eee;
+      }
+      .car-brand.car-brand-focused {
+        background: #eee;
+      }
+      .car-preview {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background-image: url(images/cars/Honda_Civic.png), linear-gradient(to bottom, #fff 0%, #fff 40%, #d0cec2 50%, #c5c2b4 100%);
+        background-size: contain;
+        background-position: right center;
+        background-repeat: no-repeat;
+        z-index: 1;
+        box-shadow: inset 0 0 150px rgba(50, 50, 50, 0.3);
+      }
+      .car-selector {
+        position: absolute;
+        width: 200px;
+        height: 100%;
+        top: 50px;
+        z-index: 2;
+        overflow-y: scroll;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        padding: 0 20px;
+      }
+      .car-selector::-webkit-scrollbar { 
+        display: none;
+      }
+      .car-selector .car-card {
+        position: relative;
+        width: 200px;
+        height: 130px;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        border-bottom: 10px solid #aaa;
+        border-radius: 10px;
+        margin-top: 20px;
+        box-shadow: 0 10px 20px rgba(100, 100, 100, 0.3);
+        filter: brightness(.7);
+        cursor: pointer !important;
+      }
+      .car-selector .car-card.car-card-focused {
+        filter: none;
+        border-color: #34a0ff;
+      }
+      .car-information {
+        position: absolute;
+        left: 240px;
+        bottom: 20px;
+        z-index: 4;
+      }
+      .car-information .logo {
+        position: relative;
+        left: 0;
+        bottom: 0;
+        width: 200px;
+      }
+      .car-information .model {
+        position: relative;
+        left: 0;
+        bottom: 20px;
+        font-size: 20px;
+        font-weight: 200;
+        color: #fff;
+      }
+      .car-information .model #year {
+        font-weight: 400;
+      }
+      .car-information .price {
+        position: relative;
+        left: 0;
+        bottom: 30px;
+        color: #fff;
+        font-size: 26px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tabs"></div>
+    <div class="car-preview"></div>
+    <div class="car-selector"></div>
+    <div class="car-information">
+      <div class="price">$35,000</div>
+      <div class="model"><span id="year">2018</span> Civic Sport Touring</div>
+      <img class="logo" src="images/car-logos/honda.png">
+    </div>
+    <script>
+      const cars = {
+        "Ford": {
+          "Ford_Victoria": {
+            model: "2010 Crown Victoria",
+            price: 5000
+          }
+        },
+        "Honda": {
+          "Honda_Civic": {
+            model: "2018 Civic Sport Touring",
+            price: 20000
+          }
+        },
+        "Mini": {
+          "Mini_Cooper": {
+            model: "2014 Mini Cooper S",
+            price: 15000
+          }
+        },
+        "Toyota": {
+          "Toyota_RAV4": {
+            model: "2023 RAV4",
+            price: 35000
+          }
+        }
+      };
+      for (brand in cars) {
+        let tab = '<div class="tab car-brand" data-brand="' + brand.toLowerCase() + '" onclick="selectCar(\'' + Object.keys(cars[brand])[0] + '\')">' + brand + '</div>';
+        document.querySelector(".tabs").innerHTML += tab;
+        for (car in cars[brand]) {
+          let card = '<div class="car-card" style="background-image: url(images/cars/' + car + '.png)" data-car="' + car + '" data-brand="' + brand + '" onclick="selectCar(\'' + car + '\')"></div>';
+          document.querySelector(".car-selector").innerHTML += card;
+        }
+      }
+      function formatNumber(number) {
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
+      }
+      let currentCar = "Toyota_RAV4";
+      function selectCar(car) {
+        const card = document.querySelector(".car-card[data-car='" + car + "']");
+        if (document.querySelector(".car-card-focused")) document.querySelector(".car-card-focused").classList.remove("car-card-focused");
+        card.classList.add("car-card-focused");
+        document.querySelector(".car-selector").scrollTo(0, card.offsetTop);
+        for (brand in cars) {
+          if (Object.keys(cars[brand]).indexOf(car) > -1) {
+            let tab = document.querySelector(".car-brand[data-brand='" + brand.toLowerCase() + "']");
+            if (document.querySelector(".car-brand-focused")) document.querySelector(".car-brand-focused").classList.remove("car-brand-focused");
+            tab.classList.add("car-brand-focused");
+          }
+        }
+        document.querySelector(".car-preview").style.backgroundImage = "url(images/cars/" + car + ".png), linear-gradient(to bottom, #fff 0%, #fff 40%, #d0cec2 50%, #c5c2b4 100%)";
+        const carInfo = cars[card.dataset.brand][car];
+        document.querySelector(".car-information .price").textContent = "$" + formatNumber(carInfo.price);
+        document.querySelector(".car-information .model").innerHTML = '<span id="year">' + carInfo.model.split(" ")[0] + '</span> ' + carInfo.model.split(" ").splice(1).join(" ");
+        document.querySelector(".car-information .logo").src = "images/car-logos/" + card.dataset.brand + ".png";
+      }
+      selectCar(currentCar);
+    </script>
+  </body>
+</html>
