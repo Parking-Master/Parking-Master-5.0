@@ -352,7 +352,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Ford_F150";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -707,6 +707,54 @@
               [0, 0.5, 6.2, 0.12, 3.141592653589793, 0],
               [1.3, 0, -3.3, 0.05, Math.PI, 0],
               [0, 0.5, 5, -0.08, 0, 0]
+            ],
+            currentView: 0
+          },
+          "Ford_F150": {
+            physics: {
+              maxSpeedMPH: 140,
+              drivetrain: "awd",
+              engineForce: 800,
+              wheelTurnRatio: 10,
+              frontArea: 3,
+              rearArea: 3.3,
+              weight: 2880,
+              gearRatios: [4.69, 2.98, 2.14, 1.76, 1.52, 1.27, 1, 0.85, 0.68, 0.63],
+              finalDriveRatio: 3.55,
+              upshiftRPM: 5000,
+              downshiftRPM: 1800,
+              wheelPhysics: {
+                weight: 12,
+                radius: 0.43,
+                suspensionStiffness: 32,
+                suspensionRestLength: 0.58,
+                frictionSlip: 1.5,
+                dampingRelaxation: 2.3,
+                dampingCompression: 4.4,
+                maxSuspensionForce: 100000,
+                maxSuspensionTravel: 1,
+                rollInfluence: 0.05
+              }
+            },
+            parts: {},
+            hasBackupCamera: true,
+            hasControlScreen: true,
+            controls: {
+              "Shifter": {
+                hovering: false,
+                bounds: [-2, -3, -0.2, -0.6]
+              },
+              "Lever_L": {
+                hovering: false,
+                bounds: [3.1, 2.8, -0.25, -0.5]
+              }
+            },
+            currentControl: null,
+            views: [
+              [0.45, 0.54, 0.2, 0, 3.141592653589793, 0],
+              [0, 0.6, 7, 0.11, 3.141592653589793, 0],
+              [1.8, 0.1, -3.5, 0.05, 3.141592653589793, 0],
+              [0, 1, 6, -0.2, 0, 0]
             ],
             currentView: 0
           }
