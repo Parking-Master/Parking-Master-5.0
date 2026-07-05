@@ -352,7 +352,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Ford_F150";
+      let chosenVehicle = "Honda_Civic";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -742,7 +742,7 @@
             controls: {
               "Shifter": {
                 hovering: false,
-                bounds: [-2, -3, -0.2, -0.6]
+                bounds: [-2, -3, -0.55, -0.8]
               },
               "Lever_L": {
                 hovering: false,
@@ -857,14 +857,14 @@
                 sounds.collision(power);
                 if (power > 2) {
                   utils.vehicle.cameraBob(power / 2);
-                  particles.dust(worldHitPosition, Math.pow(power, 1.5) / 2);
+                  particles.dust(worldHitPosition, Math.pow(power, 1.5) / 1.5);
                   utils.vehicle.dentExterior(vehicle.parts.Exterior, vectors[7].copy(worldHitPosition), vectors[8].copy(event.contact.ni), power);
                 }
                 if (power > 8) {
                   vehicle.parts.Windows.material.map = materials[1];
                   vehicle.parts.Windows.material.emissive.setHex(0x555555);
                   vehicle.parts.Windows.material.opacity = 1;
-                  if (vehicle.currentView == 0) particles.dust(camera.position, 1);
+                  if (vehicle.currentView == 0) particles.dust(camera.position, 5);
                   const amountOfDebris = Math.floor(Math.random() * vehicle.debris.length) + 1;
                   for (let i = 0; i < amountOfDebris; i++) {
                     const debris = vehicle.debris[i];
@@ -1105,6 +1105,7 @@
               const position = vectors[0].set(vehicle.mesh.position.x, 0, vehicle.mesh.position.z);
               const rotation = eulers[0].set(0, vehicle.mesh.rotation.y, 0);
               const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(map.getObjectByName("Mesh_2_6"), position, rotation, vectors[1]), materials[0]);
+              particles.dust(position, 4);
               scene.add(decalMesh);
               utils.scheduleObject(decalMesh, "tireMarks", 5000);
               sounds.tireSqueak();
@@ -1465,6 +1466,7 @@
             });
           },
           gameOver: function(reason = "crash") {
+            if (!utils.data.allowedToUseControls) return;
             utils.data.allowedToUseControls = false;
             if (document.exitPointerLock) document.exitPointerLock();
             PointerControls.isLocked = false;

@@ -54,7 +54,7 @@
         position: relative;
         width: 100%;
         height: 100%;
-        background-image: url(images/cars/Honda_Civic.png), linear-gradient(to bottom, #fff 0%, #fff 40%, #d0cec2 50%, #c5c2b4 100%);
+        background-image: url(images/cars/Honda_Civic.png);
         background-size: contain;
         background-position: right center;
         background-repeat: no-repeat;
@@ -71,6 +71,7 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
         padding: 0 20px;
+        scroll-behavior: smooth;
       }
       .car-selector::-webkit-scrollbar { 
         display: none;
@@ -79,15 +80,15 @@
         position: relative;
         width: 200px;
         height: 130px;
-        background-size: cover;
+        background-size: 160%;
         background-position: center;
         background-repeat: no-repeat;
         border-bottom: 10px solid #aaa;
         border-radius: 10px;
         margin-top: 20px;
-        box-shadow: 0 10px 20px rgba(100, 100, 100, 0.3);
         filter: brightness(.7);
         cursor: pointer !important;
+        box-shadow: 0 10px 20px rgba(100, 100, 100, 0.3);
       }
       .car-selector .car-card.car-card-focused {
         filter: none;
@@ -98,18 +99,21 @@
         left: 240px;
         bottom: 20px;
         z-index: 4;
+        word-wrap: break-word;
+        width: 240px;
+        background-color: rgba(0, 0, 0, 0.3);
+        text-align: center;
       }
       .car-information .logo {
         position: relative;
         left: 0;
         bottom: 0;
-        width: 200px;
-        background-color: rgba(0, 0, 0, 0.3);
+        width: 100%;
+        display: block;
       }
       .car-information .model {
         position: relative;
         left: 0;
-        bottom: 20px;
         font-size: 20px;
         font-weight: 200;
         color: #fff;
@@ -120,7 +124,6 @@
       .car-information .price {
         position: relative;
         left: 0;
-        bottom: 30px;
         color: #fff;
         font-size: 26px;
       }
@@ -172,6 +175,10 @@
           "Ford_Victoria": {
             model: "2010 Crown Victoria",
             price: 5000
+          },
+          "Ford_F150": {
+            model: "2017 F150 Raptor",
+            price: 22000
           }
         },
         "Honda": {
@@ -204,7 +211,7 @@
       function formatNumber(number) {
         return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
       }
-      let currentCar = "Toyota_RAV4";
+      let currentCar = Object.keys(Object.values(cars)[0])[0];
       function selectCar(car) {
         const card = document.querySelector(".car-card[data-car='" + car + "']");
         if (document.querySelector(".car-card-focused")) document.querySelector(".car-card-focused").classList.remove("car-card-focused");
@@ -217,7 +224,7 @@
             tab.classList.add("car-brand-focused");
           }
         }
-        document.querySelector(".car-preview").style.backgroundImage = "url(images/cars/" + car + ".png), linear-gradient(to bottom, #fff 0%, #fff 40%, #d0cec2 50%, #c5c2b4 100%)";
+        document.querySelector(".car-preview").style.backgroundImage = "url(images/cars/" + car + ".png)";
         const carInfo = cars[card.dataset.brand][car];
         document.querySelector(".car-information .price").textContent = "$" + formatNumber(carInfo.price);
         document.querySelector(".car-information .model").innerHTML = '<span id="year">' + carInfo.model.split(" ")[0] + '</span> ' + carInfo.model.split(" ").splice(1).join(" ");
