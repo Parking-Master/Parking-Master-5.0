@@ -225,6 +225,9 @@ sounds = {
       sounds.library.timeLow.play();
     }
   },
+  stopTimeLow: function() {
+    if (sounds.library.timeLow.playing) sounds.library.timeLow.pause();
+  },
   success: function() {
     sounds.library.success.currentTime = 0;
     sounds.library.success.play();
