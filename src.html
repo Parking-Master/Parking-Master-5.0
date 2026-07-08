@@ -442,6 +442,9 @@
               utils.data.levelStartTime = Date.now();
               sounds.timeStart();
               delete objects[id];
+            } else if (object.objectType == "moneyText") {
+              utils.data.moneyText = null;
+              delete objects[id];
             }
           }
         }
@@ -503,7 +506,8 @@
           initialViewSwitch: false,
           steerPowerCoefficient: 1,
           isUsingKeyboard: true,
-          isMobileGame: false
+          isMobileGame: false,
+          moneyText: null
         },
         vehicles: {
           "Honda_Civic": {
@@ -814,6 +818,7 @@
                   child.rotation.order = "YXZ";
                   vehicle.mesh = child;
                   const chassisSize = new THREE.Box3().setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
+                  vehicle.spawnHeight = (chassisSize.y / 2) + 0.1;
                   vehicle.corners = {
                     fl: new THREE.Vector3(chassisSize.x / 2, -chassisSize.y / 2, chassisSize.z / 2),
                     fr: new THREE.Vector3(-chassisSize.x / 2, -chassisSize.y / 2, chassisSize.z / 2),
@@ -1383,11 +1388,11 @@
           currentLevel: null,
           currentLevelTrafficCones: [],
           levels: [
-            { time: 30, spawnPoint: [-5,1,2,0,Math.PI/2,0] },
-            { time: 25, spawnPoint: [-6,1,0,0,-Math.PI/2,0] },
-            { time: 25, spawnPoint: [0,1,0,0,Math.PI/2,0] },
-            { time: 15, spawnPoint: [7.5,1,9,0,-Math.PI/2,0], sky: 2, directionalLight: [0xf4e6bc, 0.1], ambientLight: [0xffbb55, 0.3] },
-            { time: 30, spawnPoint: [-5,1,2,0,Math.PI/2,0] },
+            { time: 30, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
+            { time: 25, spawnPoint: [-6,0,0,0,-Math.PI/2,0] },
+            { time: 25, spawnPoint: [0,0,0,0,Math.PI/2,0] },
+            { time: 15, spawnPoint: [7.5,0,9,0,-Math.PI/2,0], sky: 2, directionalLight: [0xf4e6bc, 0.1], ambientLight: [0xffbb55, 0.3] },
+            { time: 30, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1400,13 +1405,14 @@
               vehicle.body.velocity.set(0, 0, 0);
               vehicle.body.angularVelocity.set(0, 0, 0);
               const spawnPoint = levelData.spawnPoint;
-              vehicle.body.position.set(spawnPoint[0], spawnPoint[1], spawnPoint[2]);
+              vehicle.body.position.set(spawnPoint[0], spawnPoint[1] + vehicle.spawnHeight, spawnPoint[2]);
               vehicle.body.quaternion.setFromEuler(spawnPoint[3], spawnPoint[4], spawnPoint[5]);
               utils.game.parkingLot.traverse(child => child.name.includes("Traffic_Cone") && utils.map.addTrafficCone(child.position.x, child.position.y, child.position.z));
               if (swal.getState().isOpen) swal.close();
               document.querySelector(".loading").style.opacity = 0;
               utils.game.startTimer();
               utils.data.allowedToUseControls = true;
+              utils.data.initialViewSwitch = true;
             }
             utils.map.removeAllTrafficCones();
             if (!isBonusLevel) utils.map.addDefaultTrafficCones();
@@ -1568,6 +1574,8 @@
             sounds.success();
             sounds.stopTimeLow();
             document.querySelector(".loading").style.backgroundImage = "url(images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
+            utils.data.moneyText = "$" + (points * 100);
+            utils.scheduleObject({}, "moneyText", 2000);
             return true;
           },
           getParkingSpot: function() {
@@ -1859,6 +1867,7 @@
               ctx.fillText("Level " + currentLevel, 20, window.innerHeight - 202);
             }
             ctx.fillText(localStorage["points"] + " PTS", 20, window.innerHeight - 180);
+            if (utils.data.moneyText) ctx.fillStyle = "#00ff00", ctx.fillText("+ " + utils.data.moneyText, 20, 50);
             ctx.restore();
           }
         }
