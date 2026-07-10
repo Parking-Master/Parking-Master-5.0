@@ -157,6 +157,37 @@
         font-size: 14px;
         vertical-align: middle;
       }
+      @media only screen and (max-width:1100px) {
+        .car-selector .car-card {
+          width: 150px;
+          height: 120px;
+        }
+        .car-information {
+          left: 190px;
+          width: 160px;
+          bottom: 10px;
+        }
+        .car-information .price {
+          font-size: 22px;
+        }
+        .car-information .model {
+          font-size: 16px;
+        }
+        .car-preview {
+          background-position: 100px center;
+        }
+      }
+      .tippy-box {
+        background-color: #ccc;
+        color: #fff;
+      }
+      .tippy-box::before {
+        border: none;
+        background: #ddd;
+      }
+      .tippy-arrow {
+        background: #ddd;
+      }
     </style>
   </head>
   <body>
@@ -168,8 +199,10 @@
       <div class="model"><span id="year">2018</span> Civic Sport Touring</div>
       <img class="logo" src="images/car-logos/honda.png">
     </div>
-    <div class="balance"><span class="info" title="Each Point you earn in-game gives you $100 to spend in the store"></span> Balance: <span id="value">$0</span></div>
+    <div class="balance"><span class="info" data-tippy-content="Each Point you earn in-game gives you $100 to spend in the store" data-tippy-arrow="false"></span> Balance: <span id="value">$0</span></div>
+    <script src="scripts/tippy.js"></script>
     <script>
+      tippy("[data-tippy-content]");
       const cars = {
         "Ford": {
           "Ford_Victoria": {

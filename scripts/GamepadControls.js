@@ -2,10 +2,16 @@ GamepadControls = {
   isConnected: false,
   speed: 0.6,
   buttonDownEvent: function(key, value) {
-    if (buttonActions[key]) buttonActions[key](value, true);
+    if (buttonActions[key]) {
+      if (!utils.data.allowedToUseControls && key != "a" && key != "b") return;
+      buttonActions[key](value, true);
+    }
   },
   buttonUpEvent: function(key, value) {
-    if (buttonActions[key]) buttonActions[key](value, false);
+    if (buttonActions[key]) {
+      if (!utils.data.allowedToUseControls && key != "a" && key != "b") return;
+      buttonActions[key](value, false);
+    }
   },
   update: function() {
     const gamepads = navigator.getGamepads();
@@ -73,22 +79,23 @@ window.addEventListener("gamepadconnected", function(event) {
   utils.data.isUsingKeyboard = false;
   document.querySelector(".howtoplay").src = "images/howtoplay-gamepad.png";
   document.querySelector(".howtoplay").style.display = "";
-//   if (typeof swal !== "undefined") {
-//     let oldSwal = swal;
-//     swal = function() {
-//       let output = oldSwal.apply(null, arguments);
-//       if (document.querySelector(".swal-button")) {
-//         document.querySelector(".swal-button").textContent += " [B]";
-
-//         if (document.querySelector(".swal-button--confirm")) {
-//           if (!document.querySelector(".swal-button--confirm").textContent.includes("[B]")) document.querySelector(".swal-button--confirm").textContent += " [X]";
-//         }
-//       }
-//       return output;
-//     };
-//     swal.close = oldSwal.close;
-//     swal.getState = oldSwal.getState;
-//   }
+  if (typeof swal !== "undefined") {
+    let oldSwal = swal;
+    swal = function() {
+      let output = oldSwal.apply(null, arguments);
+      if (document.querySelector(".swal-button")) {
+        document.querySelector(".swal-button").textContent += " [A]";
+        if (document.querySelector(".swal-button--confirm") && !document.querySelector(".swal-button--confirm").textContent.includes("[A]")) document.querySelector(".swal-button--confirm").textContent += " [B]";
+      }
+      return output;
+    };
+    swal.close = oldSwal.close;
+    swal.getState = oldSwal.getState;
+  }
+  if (utils.data.isMobileGame) {
+    utils.data.isMobileGame = false;
+    document.querySelector(".mobile-ui").style.display = "none";
+  }
 });
 
 window.addEventListener("gamepaddisconnected", function() {
@@ -310,10 +317,26 @@ buttonActions = {
     if (isPressed) {
       if (!buttonRepeats.a) {
         buttonRepeats.a = true;
-        utils.game.controls.simplePark();
+        if (swal.getState().isOpen) {
+          if (document.querySelector(".swal-button").textContent.includes("[A]")) document.querySelector(".swal-button").click();
+        } else {
+          utils.game.controls.simplePark();
+        }
       }
     } else {
       buttonRepeats.a = false;
+    }
+  },
+  "b": function(value, isPressed) {
+    if (isPressed) {
+      if (!buttonRepeats.b) {
+        buttonRepeats.b = true;
+        if (swal.getState().isOpen) {
+          if (document.querySelector(".swal-button--confirm").textContent.includes("[B]")) document.querySelector(".swal-button--confirm").click();
+        }
+      }
+    } else {
+      buttonRepeats.b = false;
     }
   }
 };
