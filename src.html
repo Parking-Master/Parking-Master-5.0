@@ -352,7 +352,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Ford_Victoria";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -668,7 +668,7 @@
           },
           "Ford_Victoria": {
             physics: {
-              maxSpeedMPH: 122,
+              maxSpeedMPH: 180,
               drivetrain: "rwd",
               engineForce: 800,
               wheelTurnRatio: 12.5,
@@ -811,9 +811,7 @@
                   child.userData.useEnvMap = true;
                   if (child.name == "Exterior") vehicle.originalExteriorGeometry = child.geometry.clone();
                 } else if (child.name == "Shadow") {
-                  child.shadowSize = [child.scale.x, child.scale.y];
-                  vehicle.shadow = child;
-                  scene.add(vehicle.shadow);
+                  scene.add(child);
                 } else if (child.name == "Chassis") {
                   child.rotation.order = "YXZ";
                   vehicle.mesh = child;
@@ -854,7 +852,7 @@
               vehicle.body.addEventListener("collide", function(event) {
                 if (Math.abs(event.contact.ni.x) <= 0.1 && Math.abs(event.contact.ni.y) >= 0.5 && Math.abs(event.contact.ni.z) <= 0) return;
                 const time = Date.now();
-                if (time - utils.data.lastCrash < 500) return;
+                if (time - utils.data.lastCrash < 100 || vehicle.speed < .1) return;
                 utils.data.lastCrash = time;
                 const worldHitPosition = vectors[6].copy(event.contact.bi.position);
                 worldHitPosition.vadd(event.contact.ri, worldHitPosition);
@@ -1010,8 +1008,8 @@
                 wheel.mesh.position.copy(wheel.body.position);
                 wheel.mesh.quaternion.copy(wheel.body.quaternion);
               }
-              vehicle.shadow.position.set(vehicle.mesh.position.x, 0, vehicle.mesh.position.z);
-              vehicle.shadow.rotation.z = vehicle.mesh.rotation.y - Math.PI / 2;
+              vehicle.parts.Shadow.position.set(vehicle.mesh.position.x, 0, vehicle.mesh.position.z);
+              vehicle.parts.Shadow.rotation.z = vehicle.mesh.rotation.y - Math.PI / 2;
             }
           },
           updateView: function(deltaTime, time) {
@@ -1030,8 +1028,12 @@
               camera.rotation.y += vehicle.mesh.rotation.y - utils.data.lastVehicleRotationY;
               utils.data.lastVehicleRotationY = vehicle.mesh.rotation.y;
               if (utils.data.allowedToUseControls) {
-                PointerControls.isLocked = true;
                 TouchControls.isLocked = true;
+                if (document.pointerLockElement != null && vehicle.currentView == 0) {
+                  PointerControls.isLocked = true;
+                } else {
+                  PointerControls.isLocked = false;
+                }
               }
             } else if (vehicle.currentView == 1) {
               camera.position.copy(vehicle.mesh.position);
@@ -1393,6 +1395,7 @@
             { time: 25, spawnPoint: [0,0,0,0,Math.PI/2,0] },
             { time: 15, spawnPoint: [7.5,0,9,0,-Math.PI/2,0], sky: 2, directionalLight: [0xf4e6bc, 0.1], ambientLight: [0xffbb55, 0.3] },
             { time: 30, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
+            { time: 20, spawnPoint: [18.62,7.23,1.36,0,-Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1413,6 +1416,7 @@
               utils.game.startTimer();
               utils.data.allowedToUseControls = true;
               utils.data.initialViewSwitch = true;
+              PointerControls.isLocked = false;
             }
             utils.map.removeAllTrafficCones();
             if (!isBonusLevel) utils.map.addDefaultTrafficCones();
@@ -1443,6 +1447,21 @@
                   child.traverse(child => {
                     if (child.name.startsWith("Marker_")) utils.game.parkingLot.spots[type].corners[child.name.split("_")[1].toLowerCase()] = child.position;
                   });
+                } else if (child.name.includes("Collider")) {
+                  eulers[2].copy(child.rotation);
+                  child.rotation.set(0, 0, 0);
+                  const box = new THREE.Box3();
+                  box.setFromObject(child);
+                  const size = box.getSize(vectors[9].set(0, 0, 0));
+                  const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(vectors[13].set(size.x / 2, size.y / 2, size.z / 2)), material: groundMaterial });
+                  body.isTemporaryCollider = true;
+                  world.add(body);
+                  child.rotation.copy(eulers[2]);
+                  box.setFromObject(child);
+                  const worldPosition = box.min.add(box.max).divide(vectors[10]);
+                  body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
+                  body.quaternion.copy(child.quaternion);
+                  body.position.y = -.25;
                 }
               });
               if (isBonusLevel) {
@@ -1476,7 +1495,7 @@
             utils.data.allowedToUseControls = false;
             if (document.exitPointerLock) document.exitPointerLock();
             PointerControls.isLocked = false;
-            TouchControls.isLocked = true;
+            TouchControls.isLocked = false;
             utils.game.controls.stopThrottle();
             utils.game.controls.brake();
             sounds.stopTimeLow();
@@ -1526,7 +1545,7 @@
             utils.data.allowedToUseControls = false;
             if (document.exitPointerLock) document.exitPointerLock();
             PointerControls.isLocked = false;
-            TouchControls.isLocked = true;
+            TouchControls.isLocked = false;
             let points = 1;
             let icon = null;
             let title = null;
@@ -1618,6 +1637,7 @@
             onWindowResize();
             animate();
             sounds.startup();
+            PointerControls.isLocked = false;
           },
           controls: {
             switchView: function(view = null) {

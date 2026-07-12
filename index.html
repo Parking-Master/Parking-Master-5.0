@@ -420,13 +420,6 @@
         border: 10px solid #ddd;
         border-radius: 100%;
         border-top: 10px solid #47b3ff;
-        display: flex;
-        text-align: center;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        font-family: "Roboto", Arial;
-        color: #47b3ff;
         left: 50%;
         top: 50%;
         margin-left: -90px;
@@ -434,15 +427,26 @@
         box-sizing: border-box;
         animation: spin 2s linear infinite;
       }
-      .spinner .loading-progress {
-        animation: spin 2s reverse linear infinite;
+      .spinner + .loading-progress {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        display: flex;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        font-family: "Roboto", Arial;
+        color: #47b3ff;
+        font-size: 24px;
       }
     </style>
   </head>
   <body>
     <audio id="menu-audio" src="https://cdn.jsdelivr.net/gh/Parking-Master/Parking-Master@latest/index/menu-audio.mp3" autoplay="" loop=""></audio>
     <div class="loading-banner">
-      <div class="spinner"><div class="loading-progress">0%</div></div>
+      <div class="spinner"></div>
+      <div class="loading-progress">0%</div>
     </div>
     <div class="nav-bar">
       <button class="button nav-button nav-button-login" onclick="location.href = 'login.html'">Log in <img src="images/menu/arrow-right.png" class="arrow-icon"></button>

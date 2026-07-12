@@ -163,6 +163,7 @@ sounds = {
     } else {
       didBackupWarning = false;
     }
+    sounds.library.cars.ambienceInterior.gain.gain.value = 0.5 + (vehicle.speedMPH / 7);
   },
   collision: function(power) {
     if (power < 6) {
