@@ -337,9 +337,10 @@
       }
       window.addEventListener("resize", onWindowResize);
 
-      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3()];
+      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
       const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
       const quaternions = [new CANNON.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
+      const box3 = new THREE.Box3();
       const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
       const objects = {};
       const loadingManager = new THREE.LoadingManager();
@@ -352,7 +353,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Ford_Victoria";
+      let chosenVehicle = "Honda_Civic";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -507,7 +508,8 @@
           steerPowerCoefficient: 1,
           isUsingKeyboard: true,
           isMobileGame: false,
-          moneyText: null
+          moneyText: null,
+          realLevel: 1
         },
         vehicles: {
           "Honda_Civic": {
@@ -815,7 +817,7 @@
                 } else if (child.name == "Chassis") {
                   child.rotation.order = "YXZ";
                   vehicle.mesh = child;
-                  const chassisSize = new THREE.Box3().setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
+                  const chassisSize = box3.setFromObject(vehicle.mesh).getSize(new THREE.Vector3());
                   vehicle.spawnHeight = (chassisSize.y / 2) + 0.1;
                   vehicle.corners = {
                     fl: new THREE.Vector3(chassisSize.x / 2, -chassisSize.y / 2, chassisSize.z / 2),
@@ -1042,11 +1044,11 @@
               } else {
                 const rotateAmount = utils.data.initialViewSwitch ? 1 : Math.min(deltaTime * 5, 0.4);
                 const targetQuaternion = quaternions[1].copy(vehicle.mesh.quaternion);
-                quaternions[2].setFromAxisAngle(new THREE.Vector3(1, 0, 0), view[3]);
+                quaternions[2].setFromAxisAngle(vectors[14], view[3]);
                 targetQuaternion.multiply(quaternions[2]);
-                quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 1, 0), view[4]);
+                quaternions[2].setFromAxisAngle(vectors[15], view[4]);
                 targetQuaternion.multiply(quaternions[2]);
-                quaternions[2].setFromAxisAngle(new THREE.Vector3(0, 0, 1), view[5]);
+                quaternions[2].setFromAxisAngle(vectors[16], view[5]);
                 targetQuaternion.multiply(quaternions[2]);
                 camera.quaternion.slerp(targetQuaternion, rotateAmount);
               }
@@ -1218,7 +1220,7 @@
             return vehicle.currentVehicleSpeedKmHour < 0 ? vehicle.physics.rearArea : vehicle.physics.frontArea;
           },
           calculateHeadingReset: function(a, v) {
-            const resetStrength = 0.8;
+            const resetStrength = 0.6;
             const maxResetRate = Math.min(Math.max(v, 15), 30);
             let correctionAngularVelocity = -resetStrength * a * v;
             if (correctionAngularVelocity > maxResetRate) correctionAngularVelocity = maxResetRate;
@@ -1261,20 +1263,19 @@
                 }
               });
               scene.add(map);
-              const box = new THREE.Box3();
               const collisionMap = map.getObjectByName("CollisionMap");
               collisionMap.traverse(child => {
                 if (child.isMesh) {
                   eulers[2].copy(child.rotation);
                   child.rotation.set(0, 0, 0);
-                  box.setFromObject(child);
-                  const size = box.getSize(vectors[9].set(0, 0, 0));
+                  box3.setFromObject(child);
+                  const size = box3.getSize(vectors[9].set(0, 0, 0));
                   const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(vectors[13].set(size.x / 2, size.y / 2, size.z / 2)), material: groundMaterial });
                   utils.map.collisionMap.push(body);
                   world.add(body);
                   child.rotation.copy(eulers[2]);
-                  box.setFromObject(child);
-                  const worldPosition = box.min.add(box.max).divide(vectors[10]);
+                  box3.setFromObject(child);
+                  const worldPosition = box3.min.add(box3.max).divide(vectors[10]);
                   body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
                   body.quaternion.copy(child.quaternion);
                 }
@@ -1286,18 +1287,21 @@
               utils.game.loadLevel(1);
             });
           },
-          addPropCar: function(x, y, z, ry) {
-            const _propCars = propCars.filter(x=>{a=new THREE.Box3().setFromObject(x).getSize(new THREE.Vector3());return a.x<8&&a.z<8});
-            const propCarMesh = _propCars[Math.floor(Math.random() * _propCars.length)].clone();
+          addPropCar: function(x, y, z, ry, large = false) {
+            const filteredPropCars = propCars.filter(car => {
+              const carSize = box3.setFromObject(car).getSize(vectors[17]);
+              return large ? carSize.x > 8 : carSize.x < 8 && carSize.z < 8;
+            });
+            const propCarMesh = filteredPropCars[Math.floor(Math.random() * filteredPropCars.length)].clone();
             const propCar = new THREE.Group();
             propCar.add(propCarMesh);
             propCarMesh.position.set(0, 0, 0);
             propCarMesh.rotation.set(0, 0, 0);
             propCarMesh.scale.set(0.65, 0.65, 0.65);
-            propCarMesh.position.sub(new THREE.Box3().setFromObject(propCarMesh).getCenter(new THREE.Vector3()));
-            const size = new THREE.Box3().setFromObject(propCar).getSize(new THREE.Vector3());
+            propCarMesh.position.sub(box3.setFromObject(propCarMesh).getCenter(vectors[17].set(0, 0, 0)));
+            const size = box3.setFromObject(propCar).getSize(vectors[17]);
             const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3((size.x / 2) - 0.3, (size.y / 2) - 0.3, size.z / 2)) });
-            body.position.set(x, y, z);
+            body.position.set(x, (size.z / 2) + .1, z);
             body.quaternion.setFromEuler(-Math.PI / 2, 0, ry);
             world.add(body);
             scene.add(propCar);
@@ -1343,20 +1347,19 @@
             for (let i = utils.map.trafficCones.length - 1; i >= 0; i--) utils.map.removeTrafficCone(utils.map.trafficCones[i]);
           },
           useLevelAsMap: function() {
-            const box = new THREE.Box3();
             const collisionMap = utils.game.parkingLot.getObjectByName("CollisionMap");
             collisionMap.traverse(child => {
               if (child.isMesh) {
                 eulers[2].copy(child.rotation);
                 child.rotation.set(0, 0, 0);
-                box.setFromObject(child);
-                const size = box.getSize(vectors[9].set(0, 0, 0));
+                box3.setFromObject(child);
+                const size = box3.getSize(vectors[9].set(0, 0, 0));
                 const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(vectors[13].set(size.x / 2, size.y / 2, size.z / 2)), material: groundMaterial });
                 utils.map.levelCollisionMap.push(body);
                 world.add(body);
                 child.rotation.copy(eulers[2]);
-                box.setFromObject(child);
-                const worldPosition = box.min.add(box.max).divide(vectors[10]);
+                box3.setFromObject(child);
+                const worldPosition = box3.min.add(box3.max).divide(vectors[10]);
                 body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
                 body.quaternion.copy(child.quaternion);
               }
@@ -1393,13 +1396,14 @@
             { time: 30, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
             { time: 25, spawnPoint: [-6,0,0,0,-Math.PI/2,0] },
             { time: 25, spawnPoint: [0,0,0,0,Math.PI/2,0] },
+            { time: 20, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
             { time: 15, spawnPoint: [7.5,0,9,0,-Math.PI/2,0], sky: 2, directionalLight: [0xf4e6bc, 0.1], ambientLight: [0xffbb55, 0.3] },
-            { time: 30, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
-            { time: 20, spawnPoint: [18.62,7.23,1.36,0,-Math.PI/2,0] },
+            { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
+            { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
-            const isBonusLevel = level % 4 == 0;
+            utils.data.isBonusLevel = level % 5 == 0;
             function next() {
               for (key in keyStates) keyStates[key] = false;
               utils.game.controls.stopBrake();
@@ -1419,25 +1423,26 @@
               PointerControls.isLocked = false;
             }
             utils.map.removeAllTrafficCones();
-            if (!isBonusLevel) utils.map.addDefaultTrafficCones();
+            if (!utils.data.isBonusLevel) utils.map.addDefaultTrafficCones();
             if (level == utils.game.currentLevel) return next();
             utils.map.removeAllPropCars();
             previousProgress = 0;
             document.querySelector(".loading").style.opacity = 1;
             document.querySelector(".progress-bar").style.width = "";
             utils.game.currentLevel = level;
-            const levelModel = isBonusLevel ? ("bonus" + (level / 4)) : "lvl" + (utils.game.currentLevel - Math.floor(utils.game.currentLevel / 4));
+            utils.data.realLevel = utils.game.currentLevel - Math.floor(utils.game.currentLevel / 5);
+            const levelModel = utils.data.isBonusLevel ? "bonus" + (level / 5) : "lvl" + utils.data.realLevel;
             new THREE.GLTFLoader(loadingManager).load("models/levels/" + levelModel + ".glb", function(model) {
               if (utils.game.parkingLot != null) scene.remove(utils.game.parkingLot);
               utils.game.parkingLot = model.scene;
               utils.game.parkingLot.spots = {};
               utils.game.parkingLot.traverse(child => {
-                if (isBonusLevel && child.material && child.material.map) child.material.map.anisotropy = 4, child.material.map.needsUpdate = true;
+                if (utils.data.isBonusLevel && child.material && child.material.map) child.material.map.anisotropy = 4, child.material.map.needsUpdate = true;
                 if (child.name.includes("Lines") || child.name.includes("RoadMarks")) {
                   child.material.map.anisotropy = 16;
                   child.material.map.needsUpdate = true;
                 } else if (child.name.includes("PropCar")) {
-                  utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y);
+                  utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y, child.userData.large);
                 } else if (child.name.includes("Parking_Spot")) {
                   const type = child.name.split("_").pop();
                   utils.game.parkingLot.spots[type] = {
@@ -1447,30 +1452,14 @@
                   child.traverse(child => {
                     if (child.name.startsWith("Marker_")) utils.game.parkingLot.spots[type].corners[child.name.split("_")[1].toLowerCase()] = child.position;
                   });
-                } else if (child.name.includes("Collider")) {
-                  eulers[2].copy(child.rotation);
-                  child.rotation.set(0, 0, 0);
-                  const box = new THREE.Box3();
-                  box.setFromObject(child);
-                  const size = box.getSize(vectors[9].set(0, 0, 0));
-                  const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(vectors[13].set(size.x / 2, size.y / 2, size.z / 2)), material: groundMaterial });
-                  body.isTemporaryCollider = true;
-                  world.add(body);
-                  child.rotation.copy(eulers[2]);
-                  box.setFromObject(child);
-                  const worldPosition = box.min.add(box.max).divide(vectors[10]);
-                  body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
-                  body.quaternion.copy(child.quaternion);
-                  body.position.y = -.25;
                 }
               });
-              if (isBonusLevel) {
+              if (utils.data.isBonusLevel) {
                 utils.map.useLevelAsMap();
                 document.title = "Parking Master 5.0 · Bonus Level";
               } else {
                 utils.map.useDefaultMap();
-                const currentLevel = utils.game.currentLevel - Math.floor(utils.game.currentLevel / 4);
-                document.title = "Parking Master 5.0 · Level " + currentLevel;
+                document.title = "Parking Master 5.0 · Level " + utils.data.realLevel;
               }
               scene.add(utils.game.parkingLot);
               if (levelData.directionalLight) {
@@ -1499,8 +1488,7 @@
             utils.game.controls.stopThrottle();
             utils.game.controls.brake();
             sounds.stopTimeLow();
-            const isBonusLevel = utils.game.currentLevel % 4 == 0;
-            if (isBonusLevel) {
+            if (utils.data.isBonusLevel) {
               swal({
                 text: "You didn't earn any bonus points.",
                 button: "Next level ⤳",
@@ -1514,7 +1502,7 @@
             } else {
               swal({
                 title: "Game over",
-                text: reason == "crash" ? "You crashed!" : reason == "time" ? "You ran out of time!" : "You parked in a handicap spot. -10 Points.",
+                text: reason == "crash" ? "You crashed!" : reason == "time" ? "You ran out of time!" : reason == "handicap" ? "You parked in a handicap spot. -10 Points." : "You parked in a danger spot.",
                 buttons: ["Close", "Try again (10 pts)"],
                 closeOnClickOutside: false,
                 closeOnEsc: false,
@@ -1534,7 +1522,7 @@
             const parkingSpot = utils.game.getParkingSpot();
             for (corner in vehicle.corners) {
               const axis = vehicle.corners[corner].clone().applyQuaternion(vehicle.mesh.quaternion);
-              const cornerPosition = new THREE.Vector3().copy(vehicle.mesh.position).add(axis);
+              const cornerPosition = vectors[18].copy(vehicle.mesh.position).add(axis);
               const cornerDistance = cornerPosition.distanceTo(parkingSpot.corners[corner]);
               distances.push(cornerDistance);
             }
@@ -1574,6 +1562,26 @@
               localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) - 10, 0));
               utils.data.allowedToUseControls = true;
               return utils.game.gameOver("handicap");
+            } else if (parkingSpot.type == "mysterySpot") {
+              let number = Math.floor(Math.random() * 10);
+              if (number <= 5) {
+                let texts = ["Good job!", "Nice job!", "Great!", "Awesome!"];
+                if (score < 5) {
+                  text = "Good";
+                } else if (score < 10) {
+                  text = texts[Math.floor(Math.random() * texts.length)];
+                } else {
+                  text = "Perfect!";
+                }
+                title = "10/10";
+              } else if (number <= 7) {
+                utils.data.allowedToUseControls = true;
+                return utils.game.gameOver("danger");
+              } else {
+                icon = "images/50pts.png";
+                text = "You earned 50 extra points!";
+                points = 50;
+              }
             }
             swal({
               icon: icon,
@@ -1602,7 +1610,7 @@
             let closestSpotDistance = null;
             for (type in utils.game.parkingLot.spots) {
               const arrayCorners = Object.values(utils.game.parkingLot.spots[type].corners);
-              const distance = arrayCorners.reduce((a, b) => a.clone().add(b)).divide(new THREE.Vector3(arrayCorners.length, arrayCorners.length, arrayCorners.length)).distanceTo(vehicle.body.position);
+              const distance = arrayCorners.reduce((a, b) => a.clone().add(b)).divide(vectors[19].set(arrayCorners.length, arrayCorners.length, arrayCorners.length)).distanceTo(vehicle.body.position);
               if (!closestSpot || distance < closestSpotDistance) {
                 closestSpot = utils.game.parkingLot.spots[type];
                 closestSpotDistance = distance;
@@ -1628,7 +1636,7 @@
           resetLevel: function() {
             utils.game.resetCar();
             utils.map.removeAllPropCars();
-            utils.game.parkingLot.traverse(child => child.name.includes("PropCar") && utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y));
+            utils.game.parkingLot.traverse(child => child.name.includes("PropCar") && utils.map.addPropCar(child.position.x, child.position.y, child.position.z, child.rotation.y, child.userData.large));
             utils.game.loadLevel(utils.game.currentLevel);
           },
           start: function() {
@@ -1875,16 +1883,14 @@
             ctx.textAlign = "left";
             ctx.font = "22px Toxigenesis";
             ctx.fillStyle = "#dddddd";
-            const isBonusLevel = utils.game.currentLevel % 4 == 0;
-            if (isBonusLevel) {
+            if (utils.data.isBonusLevel) {
               ctx.fillStyle = "#ffffff";
               ctx.textAlign = "center";
               ctx.fillText("Bonus Level", window.innerWidth / 2, 90);
               ctx.textAlign = "left";
               ctx.fillStyle = "#dddddd";
             } else {
-              const currentLevel = utils.game.currentLevel - Math.floor(utils.game.currentLevel / 4);
-              ctx.fillText("Level " + currentLevel, 20, window.innerHeight - 202);
+              ctx.fillText("Level " + utils.data.realLevel, 20, window.innerHeight - 202);
             }
             ctx.fillText(localStorage["points"] + " PTS", 20, window.innerHeight - 180);
             if (utils.data.moneyText) ctx.fillStyle = "#00ff00", ctx.fillText("+ " + utils.data.moneyText, 20, 50);
