@@ -27,7 +27,7 @@ TouchScreenControls = function(camera, element) {
   this.update = function() {
     if (utils.data.isMobileGame) {
       if (isHoldingWheel) {
-        utils.data.currentHeading += (heading - utils.data.currentHeading) * 0.2;
+        utils.data.currentHeading += (heading - utils.data.currentHeading) * 0.15;
         utils.data.currentHeading += utils.physics.calculateHeadingReset(utils.data.currentHeading, vehicle.speed);
       }
       if (wheel) wheel.style.transform = `rotate(${-utils.data.currentHeading * (90 / 35)}deg)`;

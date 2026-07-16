@@ -73,6 +73,7 @@
         z-index: 99999;
         pointer-events: none;
         transition: opacity .5s;
+        background-color: #fff;
       }
       .loading-banner {
         position: absolute;
@@ -1108,6 +1109,17 @@
                 }
               }
             }
+            if (typeof vehicle.parts.Instrument_Speedometer !== "undefined" && frameCount % 5 == 0 && vehicle.currentView == 0) {
+              const canvas = vehicle.parts.Instrument_Speedometer.canvas;
+              const ctx = canvas.ctx;
+              ctx.clearRect(0, 0, 256, 256);
+              ctx.fillStyle = "#ffffff";
+              ctx.font = "bold 250px Arial";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(Math.round(vehicle.speedMPH).toString(), canvas.width / 2, canvas.height / 2);
+              vehicle.parts.Instrument_Speedometer.material.map.needsUpdate = true;
+            }
           },
           updateEffects: function() {
             if (vehicle.sliding && vehicle.speed > 10) {
@@ -1190,6 +1202,16 @@
               vehicle.model.traverse(child => {
                 if (child.name.startsWith("Instrument_")) child.visible = on;
               });
+              if (typeof vehicle.parts.Instrument_Speedometer !== "undefined" && !vehicle.parts.Instrument_Speedometer.canvas) {
+                vehicle.parts.Instrument_Speedometer.canvas = document.createElement("canvas");
+                vehicle.parts.Instrument_Speedometer.canvas.ctx = vehicle.parts.Instrument_Speedometer.canvas.getContext("2d");
+                vehicle.parts.Instrument_Speedometer.canvas.width = 256;
+                vehicle.parts.Instrument_Speedometer.canvas.height = 256;
+                const texture = new THREE.CanvasTexture(vehicle.parts.Instrument_Speedometer.canvas);
+                vehicle.parts.Instrument_Speedometer.material.map = texture;
+                texture.needsUpdate = true;
+                utils.vehicle.setInstruments(true, "Speedometer");
+              }
             } else {
               vehicle.parts["Instrument_" + instrument].visible = on;
             }
@@ -1300,7 +1322,7 @@
             propCarMesh.scale.set(0.65, 0.65, 0.65);
             propCarMesh.position.sub(box3.setFromObject(propCarMesh).getCenter(vectors[17].set(0, 0, 0)));
             const size = box3.setFromObject(propCar).getSize(vectors[17]);
-            const body = new CANNON.Body({ mass: 200, shape: new CANNON.Box(new CANNON.Vec3((size.x / 2) - 0.3, (size.y / 2) - 0.3, size.z / 2)) });
+            const body = new CANNON.Body({ mass: large ? 1000 : 200, shape: new CANNON.Box(new CANNON.Vec3((size.x / 2) - 0.3, (size.y / 2) - 0.3, size.z / 2)) });
             body.position.set(x, (size.z / 2) + .1, z);
             body.quaternion.setFromEuler(-Math.PI / 2, 0, ry);
             world.add(body);
@@ -1518,17 +1540,29 @@
             }
           },
           park: function() {
-            const distances = [];
-            const parkingSpot = utils.game.getParkingSpot();
-            for (corner in vehicle.corners) {
-              const axis = vehicle.corners[corner].clone().applyQuaternion(vehicle.mesh.quaternion);
-              const cornerPosition = vectors[18].copy(vehicle.mesh.position).add(axis);
-              const cornerDistance = cornerPosition.distanceTo(parkingSpot.corners[corner]);
-              distances.push(cornerDistance);
+            let distances = [];
+            let parkingSpot = utils.game.getParkingSpot();
+            let lowestDistance, highestDistance;
+            function getDistance(spotCorners = parkingSpot.corners) {
+              for (corner in vehicle.corners) {
+                const axis = vehicle.corners[corner].clone().applyQuaternion(vehicle.mesh.quaternion);
+                const cornerPosition = vectors[18].copy(vehicle.mesh.position).add(axis);
+                const cornerDistance = cornerPosition.distanceTo(spotCorners[corner]);
+                distances.push(cornerDistance);
+              }
+              lowestDistance = Math.min(...distances);
+              highestDistance = Math.max(...distances);
+              if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) {
+                if (spotCorners == parkingSpot.corners) {
+                  distances = [];
+                  return getDistance({ fl: parkingSpot.corners.rr, fr: parkingSpot.corners.rl, rl: parkingSpot.corners.fr, rr: parkingSpot.corners.fl });
+                } else {
+                  return false;
+                }
+              }
+              return true;
             }
-            const lowestDistance = Math.min(...distances);
-            const highestDistance = Math.max(...distances);
-            if (highestDistance - lowestDistance > 0.8 || highestDistance > 2.5) return Notiflix.Notify.failure("You are not in the parking spot."), false;
+            if (!getDistance()) return Notiflix.Notify.failure("You are not in the parking spot."), false;
             const score = Math.round(Math.max(Math.min(((1 - (highestDistance - lowestDistance) * (1 / 0.7) / 1.4) * 10) + (Math.pow(utils.data.timeLeft / utils.data.levelTime, 5) * 5), 10), 0));
             utils.data.allowedToUseControls = false;
             if (document.exitPointerLock) document.exitPointerLock();
