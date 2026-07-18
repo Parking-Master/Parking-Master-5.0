@@ -354,7 +354,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = "Toyota_RAV4";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -610,8 +610,8 @@
             },
             currentControl: null,
             views: [
-              [0.35, 0.52, -0.1, 0, Math.PI, 0],
-              [0, 0.7, 6, 0.08, Math.PI, 0],
+              [0.35, 0.55, -0.1, 0, Math.PI, 0],
+              [0, 0.8, 6.2, 0.08, 3.141592653589793, 0],
               [1.3, 0, -3.2, 0.05, Math.PI, 0],
               [0, 0.6, 5, -0.05, 0, 0]
             ],
@@ -1422,6 +1422,7 @@
             { time: 15, spawnPoint: [7.5,0,9,0,-Math.PI/2,0], sky: 2, directionalLight: [0xf4e6bc, 0.1], ambientLight: [0xffbb55, 0.3] },
             { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
             { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
+            { time: 20, spawnPoint: [8,0,0,0,-Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1910,7 +1911,7 @@
             } else {
               const minutes = utils.data.levelTime / 60;
               const seconds = ("." + minutes.toFixed(5).split(".")[1]) * 60;
-              const levelTime = `${Math.floor(minutes)}:${("0" + Math.floor(seconds)).slice(-2)}`;
+              const levelTime = `${Math.floor(minutes)}:${("0" + Math.round(seconds)).slice(-2)}`;
               ctx.font = "50px Toxigenesis";
               ctx.fillText(levelTime, window.innerWidth / 2, 50 + 10);
             }

@@ -171,6 +171,7 @@ sounds = {
         sounds.library.cars.bumpInterior.currentTime = 0;
         sounds.library.cars.bumpInterior.play();
       } else {
+        sounds.library.cars.bump.gain.gain.value = Math.max(power / 8, 0.2);
         sounds.library.cars.bump.currentTime = 0;
         sounds.library.cars.bump.play();
       }
