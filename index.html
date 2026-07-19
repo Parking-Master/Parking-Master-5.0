@@ -108,12 +108,10 @@
         background-position: center;
         box-shadow: 0 6px 0 #ddd;
         cursor: pointer;
+        transition: transform .2s;
       }
       .buttons-wrapper .button:hover {
         transform: scale(1.1);
-      }
-      .buttons-wrapper .button:active {
-        transform: scale(0.9);
       }
       .buttons-wrapper .play-button {
         left: 0;
@@ -449,8 +447,8 @@
       <div class="loading-progress">0%</div>
     </div>
     <div class="nav-bar">
-      <button class="button nav-button nav-button-login" onclick="location.href = 'login.html'">Log in <img src="images/menu/arrow-right.png" class="arrow-icon"></button>
-      <button class="button nav-button nav-button-login" onclick="location.href = 'signup.html'">Sign up <img src="images/menu/arrow-right.png" class="arrow-icon"></button>
+      <a href="login.html"><button class="button nav-button nav-button-login">Log in <img src="images/menu/arrow-right.png" class="arrow-icon"></button></a>
+      <a href="signup.html"><button class="button nav-button nav-button-login" onclick="location.href = 'signup.html'">Sign up <img src="images/menu/arrow-right.png" class="arrow-icon"></button></a>
       <button class="button nav-button nav-button-settings"></button>
       <div class="account">
         <div class="profile-picture"></div>
@@ -465,9 +463,9 @@
     <img src="images/menu/skid-marks.png" class="skid-marks">
     <div class="wrapper">
       <div class="buttons-wrapper">
-        <button class="button play-button" onclick="location.href = 'src.html'" data-tippy-content="Play" data-tippy-arrow="false"></button>
-        <button class="button cars-button" onclick="location.href = 'cars.html'" data-tippy-content="Your Cars" data-tippy-arrow="false"></button>
-        <button class="button multiplayer-button" data-tippy-content="Multiplayer" data-tippy-arrow="false"></button>
+        <a href="src.html"><button class="button play-button" data-tippy-content="Play" data-tippy-arrow="false"></button></a>
+        <a href="cars.html"><button class="button cars-button" data-tippy-content="Your Cars" data-tippy-arrow="false"></button></a>
+        <a href="#"><button class="button multiplayer-button" data-tippy-content="Multiplayer" data-tippy-arrow="false"></button></a>
       </div>
       <div class="current-car-wrapper">
         <img src="images/cars/Honda_Civic.png" class="current-car-image">

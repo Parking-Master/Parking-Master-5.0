@@ -35,7 +35,7 @@ TouchScreenControls = function(camera, element) {
   };
   if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in document.documentElement)) utils.data.isMobileGame = true;
   if (utils.data.isMobileGame) {
-    defaultPixelRatio = 1.5;
+    utils.data.defaultResolution = 100;
     document.body.style.background = "#000";
     document.querySelector(".mobile-ui .left-pedal").addEventListener("touchstart", function(event) {
       event.preventDefault();

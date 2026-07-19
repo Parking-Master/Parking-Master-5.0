@@ -94,7 +94,6 @@ sounds = {
   update: function(time) {
     let accelerateSound = null;
     let decelerateSound = null;
-    const idleSound = sounds.library.cars.idle;
     if (vehicle.currentView == 0) {
       accelerateSound = sounds.library.cars.accelerateInterior;
       decelerateSound = sounds.library.cars.decelerateInterior;
@@ -127,7 +126,7 @@ sounds = {
         decelerateSound.play();
       }
     }
-    if (!idleSound.playing) idleSound.currentTime = 0, idleSound.play();
+    if (!sounds.library.cars.idle.playing) sounds.library.cars.idle.currentTime = 0, sounds.library.cars.idle.play();
     sounds.library.cars.idle.gain.gain.value = Math.max(1 - (vehicle.speedMPH / vehicle.physics.maxSpeedMPH * 5), 0);
     if (vehicle.currentView == 0) {
       if (sounds.library.cars.accelerate.playing) {

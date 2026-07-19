@@ -11,9 +11,12 @@
       }
       html, body {
         margin: 0;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
         touch-action: none !important;
         -webkit-touch-callout: none !important;
+        background-color: #f7f7f7;
       }
       canvas {
         position: absolute;
@@ -236,6 +239,67 @@
           bottom: 210px;
         }
       }
+      #game {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden !important;
+      }
+      #game[data-reduce-screen-size] {
+        transform: scale(0.7);
+        border-radius: 10px;
+      }
+      #pause-menu {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        margin: 0;
+        background: rgba(0, 0, 0, 0.6);
+        font-family: "Toxigenesis", Arial;
+        text-align: center;
+        z-index: 9999;
+        display: none;
+      }
+      #pause-menu-header {
+        font-size: 26px;
+        color: #eee;
+      }
+      .pause-menu-wrapper {
+        position: relative;
+        width: 150px;
+        left: 50%;
+        margin-left: -75px;
+        top: 25%;
+        color: #eee;
+      }
+      .pause-menu-wrapper label {
+        font-size: 12px;
+      }
+      button.pause-menu-button {
+        display: block;
+        width: 100%;
+        background: #eee;
+        color: #333;
+        border: none;
+        border-radius: 2px;
+        margin-top: 20px;
+        font-size: 14px;
+        padding: 6px 2px;
+      }
+      .pause-menu-2 {
+        text-align: left;
+        border: 1px solid #fff;
+        padding: 20px;
+        background: #000;
+        width: 500px;
+        margin-left: -250px;
+        box-sizing: border-box;
+      }
     </style>
   </head>
   <body>
@@ -250,20 +314,52 @@
     <script src="scripts/sounds.js"></script>
     <script src="scripts/sweetalert.js"></script>
     <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
-    <canvas class="ui"></canvas>
-    <div class="mobile-ui">
-      <button class="pedal left-pedal"></button>
-      <button class="pedal right-pedal"></button>
-      <div class="shifter-wrapper">
-        <button class="button shifter-button-park" ontouchstart="utils.game.controls.shift('park')">P</button>
-        <button class="button shifter-button-reverse" ontouchstart="utils.game.controls.shift('reverse')">R</button>
-        <button class="button shifter-button-drive" ontouchstart="utils.game.controls.shift('drive')">D</button>
+    <div id="game">
+      <canvas class="ui"></canvas>
+      <div class="mobile-ui">
+        <button class="pedal left-pedal"></button>
+        <button class="pedal right-pedal"></button>
+        <div class="shifter-wrapper">
+          <button class="button shifter-button-park" ontouchstart="utils.game.controls.shift('park')">P</button>
+          <button class="button shifter-button-reverse" ontouchstart="utils.game.controls.shift('reverse')">R</button>
+          <button class="button shifter-button-drive" ontouchstart="utils.game.controls.shift('drive')">D</button>
+        </div>
+        <button class="button park" ontouchstart="utils.game.controls.simplePark()">Park!</button>
+        <button class="button switch-view" ontouchstart="utils.game.controls.switchView()">Switch View</button>
+        <div class="steering-wheel"></div>
       </div>
-      <button class="button park" ontouchstart="utils.game.controls.simplePark()">Park!</button>
-      <button class="button switch-view" ontouchstart="utils.game.controls.switchView()">Switch View</button>
-      <div class="steering-wheel"></div>
+      <img class="howtoplay" src="images/howtoplay.png">
     </div>
-    <img class="howtoplay" src="images/howtoplay.png">
+    <div id="pause-menu">
+      <div class="pause-menu-wrapper pause-menu-1">
+        <h1 id="pause-menu-header">Paused</h1>
+        <button class="pause-menu-button" onclick="utils.game.pause()">Resume</button>
+        <button class="pause-menu-button" onclick="location.replace('/')">Main Menu</button>
+        <button class="pause-menu-button" onclick="location.replace('/help.html')">Help</button>
+        <button class="pause-menu-button" onclick="this.parentElement.nextElementSibling.style.display = '', this.parentElement.style.display = 'none'">Performance Settings</button>
+      </div>
+      <div class="pause-menu-wrapper pause-menu-2" style="display: none;">
+        <h1 id="pause-menu-header">Performance</h1>
+        <button class="pause-menu-button" onclick="this.parentElement.previousElementSibling.style.display = '', this.parentElement.style.display = 'none'">&leftarrow; Go back</button>
+        <label for="slider">Performance</label>
+        <br>
+        <input type="range" name="slider" min="25" max="100" step="25" onchange="settings.performance.slider = this.value, updateSettings()">
+        <br>
+        <label for="resolution" id="performance-slider-percent">75%</label>
+        <hr>
+        <label for="resolution">Resolution</label>
+        <br>
+        <input type="range" name="resolution" min="10" max="100" onchange="settings.performance.resolution = this.value, updateSettings()">
+        <label for="resolution" id="performance-resolution-percent">70%</label>
+        <br>
+        <input type="checkbox" name="reduce-screen-size">
+        <label for="reduce-screen-size">Reduce Screen Size: Scales down the game screen to improve framerate without lowering quality.</label><br>
+        <input type="checkbox" name="background-cars">
+        <label for="background-cars">Background Cars: Controls whether to show fake cars on the highway.</label><br>
+        <input type="checkbox" name="replay">
+        <label for="replay">Enable Replay: Whether to automatically record gameplay so you can rewatch it (heavy on performance).</label><br>
+      </div>
+    </div>
     <div class="loading">
       <div class="loading-banner">
         <div class="progress-bar"></div>
@@ -282,8 +378,48 @@
         });
       }
 
-      let antialias = 0.7;
-      let defaultPixelRatio = 1.2;
+      let settings = {
+        performance: {
+          slider: 75, // Switches between 25%, 50%, 75%, and 100% to control preset options in the performance settings.
+          resolution: 70, // Controls the size percentage of the screen.
+          reduceScreenSize: false, // Shrinks the game screen to improve performance without lowering quality.
+          backgroundCars: true, // Controls whether fake cars on highway are visible.
+          replay: false // Enables or disables replay mode, which automatically records your game so you can rewatch it.
+        }
+      };
+
+      function updateSettings() {
+        if (settings.performance.slider <= 25) {
+          settings.performance.resolution = 40;
+          settings.performance.reduceScreenSize = true;
+          settings.performance.backgroundCars = false;
+          settings.performance.replay = false;
+        } else if (settings.performance.slider <= 50) {
+          settings.performance.resolution = 50;
+          settings.performance.reduceScreenSize = false;
+          settings.performance.backgroundCars = false;
+          settings.performance.replay = false;
+        } else if (settings.performance.slider <= 75) {
+          settings.performance.resolution = utils.data.defaultResolution;
+          settings.performance.reduceScreenSize = false;
+          settings.performance.backgroundCars = true;
+          settings.performance.replay = false;
+        } else {
+          settings.performance.resolution = 100;
+          settings.performance.reduceScreenSize = false;
+          settings.performance.backgroundCars = true;
+          settings.performance.replay = true;
+        }
+        if (settings.performance.reduceScreenSize) {
+          document.querySelector("#game").dataset.reduceScreenSize = "1";
+        } else {
+          document.querySelector("#game").removeAttribute("data-reduce-screen-size");
+        }
+        if (!settings.performance.backgroundCars) spawnedPropCars.forEach(car => scene.remove(car));
+        document.querySelector("#performance-slider-percent").textContent = settings.performance.slider + "%";
+        document.querySelector("#performance-resolution-percent").textContent = settings.performance.resolution + "%";
+      }
+
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 2000);
@@ -292,7 +428,7 @@
       const ambientLight = new THREE.AmbientLight(0xefe1a7, 0.4);
 
       renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
+      document.querySelector("#game").appendChild(renderer.domElement);
       scene.add(camera);
 
       camera.rotation.order = "YXZ";
@@ -328,17 +464,17 @@
       world.addContactMaterial(carGroundContactMaterial);
 
       function onWindowResize() {
-        renderer.setPixelRatio(defaultPixelRatio);
+        renderer.setPixelRatio(1.1);
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth * 0.5, window.innerHeight * 0.5, false);
+        renderer.setSize(window.innerWidth * settings.performance.resolution / 100, window.innerHeight * settings.performance.resolution / 100, false);
         const canvas = document.querySelector(".ui");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
       }
       window.addEventListener("resize", onWindowResize);
 
-      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+      const vectors = [new THREE.Vector3(), new THREE.Vector3(2, 1, 0.5), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(2, 2, 2), new CANNON.Vec3(1, 0, 0), new CANNON.Vec3(), new CANNON.Vec3(), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(0.2, 0.2, 0.2), new CANNON.Vec3(0.07, 0.225, 0.07)];
       const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
       const quaternions = [new CANNON.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
       const box3 = new THREE.Box3();
@@ -354,7 +490,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Toyota_RAV4";
+      let chosenVehicle = "Honda_Civic";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -369,8 +505,6 @@
       sounds.initialize();
 
       let frameCount = 0;
-      let lastTime = performance.now();
-      let fps = 0;
       function animate(now) {
         const deltaTime = Math.min(0.04, clock.getDelta());
         const time = Date.now();
@@ -387,7 +521,7 @@
         utils.vehicle.updateEffects();
         particles.update();
         if (frameCount % 2 == 0) sounds.update(time);
-        if (frameCount % 3 == 0) utils.ui.update(deltaTime, time);
+        if (frameCount % 4 == 0) utils.ui.update(deltaTime, time);
         TouchControls.update();
 
         for (let i = 0; i < physicsBodies.length; i++) {
@@ -396,31 +530,34 @@
           physicsBodies[i].mesh.quaternion.copy(physicsBodies[i].body.quaternion);
         }
 
-        const spawnFactor = Math.floor(Math.random() * 100);
-        if (spawnFactor <= 10) {
-          const newPropCar = propCars[Math.floor(Math.random() * propCars.length)];
-          if (newPropCar && spawnedPropCars.indexOf(newPropCar) == -1 && time - lastPropCarSpawn > 800) {
-            lastPropCarSpawn = time;
-            if (spawnFactor <= 5) {
-              newPropCar.rotation.set(-Math.PI / 2 - 0.05, -0.01, -Math.PI / 2);
-              newPropCar.position.set(300, 0.2, 17);
-              newPropCar.direction = 1;
-            } else {
-              newPropCar.rotation.set(-Math.PI / 2 - 0.05, 0.01, Math.PI / 2);
-              newPropCar.position.set(-300, 0.4, 24);
-              newPropCar.direction = -1;
+        if (settings.performance.backgroundCars) {
+          const spawnFactor = Math.floor(Math.random() * 100);
+          if (spawnFactor <= 10) {
+            const newPropCar = propCars[Math.floor(Math.random() * propCars.length)];
+            if (newPropCar && spawnedPropCars.indexOf(newPropCar) == -1 && time - lastPropCarSpawn > 800) {
+              lastPropCarSpawn = time;
+              if (spawnFactor <= 5) {
+                newPropCar.rotation.set(-Math.PI / 2 - 0.05, -0.01, -Math.PI / 2);
+                newPropCar.position.set(300, 0.2, 17);
+                newPropCar.direction = 1;
+              } else {
+                newPropCar.rotation.set(-Math.PI / 2 - 0.05, 0.01, Math.PI / 2);
+                newPropCar.position.set(-300, 0.4, 24);
+                newPropCar.direction = -1;
+              }
+              spawnedPropCars.push(newPropCar);
             }
-            spawnedPropCars.push(newPropCar);
+          }
+          for (let i = 0; i < spawnedPropCars.length; i++) {
+            const propCar = spawnedPropCars[i];
+            if (propCar.position.x > -301 && propCar.position.x < 301) {
+              propCar.position.x += -25 * propCar.direction * deltaTime;
+            } else {
+              spawnedPropCars.splice(spawnedPropCars.indexOf(propCar), 1);
+            }
           }
         }
-        for (let i = 0; i < spawnedPropCars.length; i++) {
-          const propCar = spawnedPropCars[i];
-          if (propCar.position.x > -301 && propCar.position.x < 301) {
-            propCar.position.x += -25 * propCar.direction * deltaTime;
-          } else {
-            spawnedPropCars.splice(spawnedPropCars.indexOf(propCar), 1);
-          }
-        }
+
         for (id in objects) {
           const object = objects[id];
           if (time - object.timestamp > object.delay) {
@@ -451,15 +588,6 @@
           }
         }
 
-        frameCount++;
-        const diff = now - lastTime;
-        if (diff >= 1000) {
-          fps = (frameCount * 1000) / diff;
-          frameCount = 0;
-          lastTime = now;
-          console.log('FPS:', fps.toFixed(1));
-        }
-
         if ((vehicle && vehicle.currentView == 0 && frameCount % 3 == 0 && vehicle.speed > 0.1) || utils.vehicle.backupRenderTarget.initialUpdate) {
           utils.vehicle.backupRenderTarget.initialUpdate = false;
           vehicle.model.visible = false;
@@ -471,6 +599,28 @@
           }
           renderer.setRenderTarget(null);
           vehicle.model.visible = true;
+        }
+
+        if (settings.performance.replay) {
+          if (utils.data.showReplay) {
+            const data = utils.data.replayFrames[utils.data.currentReplayFrame];
+            if (data) {
+              vehicle.body.position.copy(data[0]);
+              vehicle.body.quaternion.copy(data[1]);
+              vehicle.body.velocity.copy(data[2]);
+              vehicle.body.angularVelocity.copy(data[3]);
+              utils.data.currentReplayFrame++;
+              camera.position.set(-25, 5, 15);
+              camera.lookAt(vehicle.mesh.position);
+              camera.fov = Math.max(30 - (vehicle.mesh.position.distanceTo(camera.position) / 4), 15);
+              camera.updateProjectionMatrix();
+            } else {
+              utils.data.showReplay = false;
+              utils.data.currentReplayFrame = 0;
+            }
+          } else {
+            utils.data.replayFrames.push([vehicle.body.position.clone(), vehicle.body.quaternion.clone(), vehicle.body.velocity.clone(), vehicle.body.angularVelocity.clone()]);
+          }
         }
 
         renderer.render(scene, camera);
@@ -510,7 +660,12 @@
           isUsingKeyboard: true,
           isMobileGame: false,
           moneyText: null,
-          realLevel: 1
+          realLevel: 1,
+          showReplay: false,
+          replayFrames: [],
+          currentReplayFrame: 0,
+          defaultResolution: 70,
+          paused: false
         },
         vehicles: {
           "Honda_Civic": {
@@ -847,7 +1002,7 @@
               vehicle.debris = [];
               new THREE.GLTFLoader(loadingManager).load("models/debris.glb", function(model) {
                 model.scene.children.forEach(child => {
-                  const entry = { body: new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.2, 0.2, 0.2)) }), mesh: child };
+                  const entry = { body: new CANNON.Body({ mass: 2, shape: new CANNON.Box(vectors[20]) }), mesh: child };
                   physicsBodies.push(entry);
                   vehicle.debris.push(entry);
                 });
@@ -1071,7 +1226,7 @@
               TouchControls.isLocked = false;
             }
             utils.data.initialViewSwitch = false;
-            camera.near = 0.1;
+            camera.near = 0.05;
             camera.updateProjectionMatrix();
           },
           updateLights: function(time) {
@@ -1090,11 +1245,11 @@
             }
           },
           updateControls: function() {
+            const cameraRotation = vehicle.mesh.rotation.y - camera.rotation.y;
+            const preRotation = cameraRotation - (cameraRotation > Math.PI ? 6.2 : 0);
+            const finalRotation = preRotation < -Math.PI ? preRotation + Math.PI * 2 : preRotation;
             for (controlName in vehicle.controls) {
               const control = vehicle.controls[controlName];
-              const cameraRotation = vehicle.mesh.rotation.y - camera.rotation.y;
-              const preRotation = cameraRotation - (cameraRotation > Math.PI ? 6.2 : 0);
-              const finalRotation = preRotation < -Math.PI ? preRotation + Math.PI * 2 : preRotation;
               if (finalRotation < control.bounds[0] && finalRotation > control.bounds[1] && camera.rotation.x < control.bounds[2] && camera.rotation.x > control.bounds[3]) {
                 if (!control.hovering) {
                   control.hovering = true;
@@ -1109,16 +1264,27 @@
                 }
               }
             }
-            if (typeof vehicle.parts.Instrument_Speedometer !== "undefined" && frameCount % 5 == 0 && vehicle.currentView == 0) {
-              const canvas = vehicle.parts.Instrument_Speedometer.canvas;
-              const ctx = canvas.ctx;
-              ctx.clearRect(0, 0, 256, 256);
-              ctx.fillStyle = "#ffffff";
-              ctx.font = "bold 250px Arial";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText(Math.round(vehicle.speedMPH).toString(), canvas.width / 2, canvas.height / 2);
-              vehicle.parts.Instrument_Speedometer.material.map.needsUpdate = true;
+            if (vehicle.currentView == 0) {
+              if (typeof vehicle.parts.Instrument_Speedometer !== "undefined" && frameCount % 5 == 0) {
+                const canvas = vehicle.parts.Instrument_Speedometer.canvas;
+                const ctx = canvas.ctx;
+                ctx.clearRect(0, 0, 256, 256);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 250px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(Math.round(vehicle.speedMPH).toString(), canvas.width / 2, canvas.height / 2);
+                vehicle.parts.Instrument_Speedometer.material.map.needsUpdate = true;
+              }
+              if (finalRotation > 0) {
+                let offset = Math.min(-(finalRotation - Math.PI) / 10, 0.2);
+                camera.translateZ(offset);
+                camera.translateX(offset);
+              } else if (finalRotation > -1.2) {
+                let offset = -(finalRotation + 1.2) / 5;
+                camera.translateZ(offset / 4);
+                camera.translateX(offset);
+              }
             }
           },
           updateEffects: function() {
@@ -1126,7 +1292,7 @@
               const position = vectors[0].set(vehicle.mesh.position.x, 0, vehicle.mesh.position.z);
               const rotation = eulers[0].set(0, vehicle.mesh.rotation.y, 0);
               const decalMesh = new THREE.Mesh(new THREE.DecalGeometry(map.getObjectByName("Mesh_2_6"), position, rotation, vectors[1]), materials[0]);
-              particles.dust(position, 4);
+              particles.dust(position, 3);
               scene.add(decalMesh);
               utils.scheduleObject(decalMesh, "tireMarks", 5000);
               sounds.tireSqueak();
@@ -1348,7 +1514,7 @@
               utils.map.trafficCone.used = true;
               trafficCone = utils.map.trafficCone;
             }
-            const body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.07, 0.225, 0.07)) });
+            const body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(vectors[21]) });
             body.position.set(x, y, z);
             world.add(body);
             scene.add(trafficCone);
@@ -1423,6 +1589,7 @@
             { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
             { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
             { time: 20, spawnPoint: [8,0,0,0,-Math.PI/2,0] },
+            { time: 15, spawnPoint: [.7,0,-3.5,0,0,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1617,6 +1784,9 @@
                 text = "You earned 50 extra points!";
                 points = 50;
               }
+            } else if (parkingSpot.type == "dangerSpot") {
+              utils.data.allowedToUseControls = true;
+              return utils.game.gameOver("danger");
             }
             swal({
               icon: icon,
@@ -1675,12 +1845,23 @@
             utils.game.loadLevel(utils.game.currentLevel);
           },
           start: function() {
+            updateSettings();
             renderer.shadowMap.needsUpdate = true;
             utils.game.controls.switchView(0);
             onWindowResize();
             animate();
             sounds.startup();
             PointerControls.isLocked = false;
+          },
+          pause: function() {
+            if (utils.data.paused) {
+              utils.data.paused = false;
+              document.querySelector("#pause-menu").style.display = "none";
+            } else {
+              utils.data.paused = true;
+              document.querySelector("#pause-menu").style.display = "block";
+              if (document.exitPointerLock) document.exitPointerLock();
+            }
           },
           controls: {
             switchView: function(view = null) {
@@ -1841,10 +2022,6 @@
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
             ctx.beginPath();
             ctx.fillStyle = "#ffffff";
-            if (vehicle.currentView == 0) {
-              ctx.arc(window.innerWidth / 2, window.innerHeight / 2, 2, 0, Math.PI * 2);
-              ctx.fill();
-            }
             ctx.moveTo(170, window.innerHeight - 90);
             ctx.arc(90, window.innerHeight - 90, 80, 0, Math.PI * 2);
             ctx.stroke();
@@ -1882,9 +2059,8 @@
               } else if (utils.data.currentTransmission == "drive") {
                 ctx.fillText("D", window.innerWidth - 36, window.innerHeight - 52);
               }
+              ctx.fillStyle = "#ffffff";
             }
-            ctx.fillStyle = "#ffffff";
-            ctx.textAlign = "center";
             if (utils.data.countdown) {
               if (utils.data.timeLeft <= 0) {
                 if (utils.data.allowedToUseControls) utils.game.gameOver("time");
@@ -1915,18 +2091,11 @@
               ctx.font = "50px Toxigenesis";
               ctx.fillText(levelTime, window.innerWidth / 2, 50 + 10);
             }
-            ctx.textAlign = "left";
             ctx.font = "22px Toxigenesis";
+            if (utils.data.isBonusLevel) ctx.fillText("Bonus Level", window.innerWidth / 2, 90);
+            ctx.textAlign = "left";
             ctx.fillStyle = "#dddddd";
-            if (utils.data.isBonusLevel) {
-              ctx.fillStyle = "#ffffff";
-              ctx.textAlign = "center";
-              ctx.fillText("Bonus Level", window.innerWidth / 2, 90);
-              ctx.textAlign = "left";
-              ctx.fillStyle = "#dddddd";
-            } else {
-              ctx.fillText("Level " + utils.data.realLevel, 20, window.innerHeight - 202);
-            }
+            if (!utils.data.isBonusLevel) ctx.fillText("Level " + utils.data.realLevel, 20, window.innerHeight - 202);
             ctx.fillText(localStorage["points"] + " PTS", 20, window.innerHeight - 180);
             if (utils.data.moneyText) ctx.fillStyle = "#00ff00", ctx.fillText("+ " + utils.data.moneyText, 20, 50);
             ctx.restore();
@@ -1946,21 +2115,22 @@
         if (!utils.data.allowedToUseControls) return;
         keyStates[event.key] = true;
         if (!event.repeat) {
-          if (vehicle.currentView == 0) {
-            if (vehicle.currentControl == "Control_Screen") {
-            } else if (vehicle.currentControl == "Shifter") {
-              if (event.key == "ArrowUp") utils.game.controls.shift(null, "forward");
-              if (event.key == "ArrowDown") utils.game.controls.shift(null, "backward");
-            } else if (vehicle.currentControl == "Lever_L") {
-            } else if (vehicle.currentControl == "Lever_R") {
-            }
+          if (vehicle.currentView == 0 && vehicle.currentControl == "Shifter") {
+            if (event.key == "ArrowUp") utils.game.controls.shift(null, "forward");
+            if (event.key == "ArrowDown") utils.game.controls.shift(null, "backward");
           }
           if (event.key == "v") utils.game.controls.switchView();
           if (event.key == "b") utils.game.controls.brake();
           if (event.key == "ArrowUp" && vehicle.currentControl != "Shifter") utils.game.controls.throttle();
           if (event.key == "[") utils.game.controls.leftBlinker();
           if (event.key == "]") utils.game.controls.rightBlinker();
-          if (event.key == "p") utils.game.controls.shift("park");
+          if (event.key == "p") {
+            if (event.ctrlKey || event.metaKey) {
+              event.preventDefault(), utils.game.pause();
+            } else {
+              utils.game.controls.shift("park");
+            }
+          }
           if (event.key == "r") utils.game.controls.shift("reverse");
           if (event.key == "d") utils.game.controls.shift("drive");
           if (event.key == "Enter") event.preventDefault(), utils.game.controls.simplePark();
@@ -1973,14 +2143,12 @@
         if (event.key == "ArrowUp") utils.game.controls.stopThrottle();
       });
       document.addEventListener("mousedown", function(event) {
-        if (!utils.data.allowedToUseControls) return;
-        if (document.pointerLockElement != null || swal.getState().isOpen) return;
+        if (utils.data.paused || !utils.data.allowedToUseControls || document.pointerLockElement != null || swal.getState().isOpen) return;
         document.body.requestPointerLock();
         PointerControls.lock();
       });
       document.addEventListener("mouseup", function(event) {
-        if (!utils.data.allowedToUseControls) return;
-        if (!PointerControls.isLocked) return;
+        if (utils.data.paused || !utils.data.allowedToUseControls || !PointerControls.isLocked) return;
         PointerControls.lock();
       });
 
