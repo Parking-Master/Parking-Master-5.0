@@ -343,20 +343,20 @@
         <button class="pause-menu-button" onclick="this.parentElement.previousElementSibling.style.display = '', this.parentElement.style.display = 'none'">&leftarrow; Go back</button>
         <label for="slider">Performance</label>
         <br>
-        <input type="range" name="slider" min="25" max="100" step="25" onchange="settings.performance.slider = this.value, updateSettings()">
+        <input type="range" name="slider" min="25" max="100" step="25" oninput="settings.performance.slider = this.value, updateSettings()">
         <br>
         <label for="resolution" id="performance-slider-percent">75%</label>
         <hr>
         <label for="resolution">Resolution</label>
         <br>
-        <input type="range" name="resolution" min="10" max="100" onchange="settings.performance.resolution = this.value, updateSettings()">
+        <input type="range" name="resolution" min="10" max="100" oninput="settings.performance.resolution = this.value, updateSettings(false)">
         <label for="resolution" id="performance-resolution-percent">70%</label>
         <br>
-        <input type="checkbox" name="reduce-screen-size">
+        <input type="checkbox" name="reduce-screen-size" onchange="settings.performance.reduceScreenSize = this.checked, updateSettings(false)">
         <label for="reduce-screen-size">Reduce Screen Size: Scales down the game screen to improve framerate without lowering quality.</label><br>
-        <input type="checkbox" name="background-cars">
+        <input type="checkbox" name="background-cars" onchange="settings.performance.backgroundCars = this.checked, updateSettings(false)">
         <label for="background-cars">Background Cars: Controls whether to show fake cars on the highway.</label><br>
-        <input type="checkbox" name="replay">
+        <input type="checkbox" name="replay" onchange="settings.performance.replay = this.checked, updateSettings(false)">
         <label for="replay">Enable Replay: Whether to automatically record gameplay so you can rewatch it (heavy on performance).</label><br>
       </div>
     </div>
@@ -388,27 +388,29 @@
         }
       };
 
-      function updateSettings() {
-        if (settings.performance.slider <= 25) {
-          settings.performance.resolution = 40;
-          settings.performance.reduceScreenSize = true;
-          settings.performance.backgroundCars = false;
-          settings.performance.replay = false;
-        } else if (settings.performance.slider <= 50) {
-          settings.performance.resolution = 50;
-          settings.performance.reduceScreenSize = false;
-          settings.performance.backgroundCars = false;
-          settings.performance.replay = false;
-        } else if (settings.performance.slider <= 75) {
-          settings.performance.resolution = utils.data.defaultResolution;
-          settings.performance.reduceScreenSize = false;
-          settings.performance.backgroundCars = true;
-          settings.performance.replay = false;
-        } else {
-          settings.performance.resolution = 100;
-          settings.performance.reduceScreenSize = false;
-          settings.performance.backgroundCars = true;
-          settings.performance.replay = true;
+      function updateSettings(slider = true) {
+        if (slider) {
+          if (settings.performance.slider <= 25) {
+            settings.performance.resolution = 40;
+            settings.performance.reduceScreenSize = true;
+            settings.performance.backgroundCars = false;
+            settings.performance.replay = false;
+          } else if (settings.performance.slider <= 50) {
+            settings.performance.resolution = 50;
+            settings.performance.reduceScreenSize = false;
+            settings.performance.backgroundCars = false;
+            settings.performance.replay = false;
+          } else if (settings.performance.slider <= 75) {
+            settings.performance.resolution = utils.data.defaultResolution;
+            settings.performance.reduceScreenSize = false;
+            settings.performance.backgroundCars = true;
+            settings.performance.replay = false;
+          } else {
+            settings.performance.resolution = 100;
+            settings.performance.reduceScreenSize = false;
+            settings.performance.backgroundCars = true;
+            settings.performance.replay = true;
+          }
         }
         if (settings.performance.reduceScreenSize) {
           document.querySelector("#game").dataset.reduceScreenSize = "1";
@@ -417,7 +419,14 @@
         }
         if (!settings.performance.backgroundCars) spawnedPropCars.forEach(car => scene.remove(car));
         document.querySelector("#performance-slider-percent").textContent = settings.performance.slider + "%";
+        document.querySelector("input[name='slider']").value = settings.performance.slider;
         document.querySelector("#performance-resolution-percent").textContent = settings.performance.resolution + "%";
+        document.querySelector("input[name='resolution']").value = settings.performance.resolution;
+        document.querySelector("input[name='reduce-screen-size']").checked = settings.performance.reduceScreenSize;
+        document.querySelector("input[name='background-cars']").checked = settings.performance.backgroundCars;
+        document.querySelector("input[name='replay']").checked = settings.performance.replay;
+        onWindowResize();
+        renderer.render(scene, camera);
       }
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -506,6 +515,7 @@
 
       let frameCount = 0;
       function animate(now) {
+        if (utils.data.paused) return;
         const deltaTime = Math.min(0.04, clock.getDelta());
         const time = Date.now();
         world.step(deltaTime);
@@ -665,7 +675,8 @@
           replayFrames: [],
           currentReplayFrame: 0,
           defaultResolution: 70,
-          paused: false
+          paused: false,
+          pausedTimestamp: Date.now()
         },
         vehicles: {
           "Honda_Civic": {
@@ -1590,6 +1601,7 @@
             { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
             { time: 20, spawnPoint: [8,0,0,0,-Math.PI/2,0] },
             { time: 15, spawnPoint: [.7,0,-3.5,0,0,0] },
+            { time: 12, spawnPoint: [-8,0,-6,0,0,0], sky: 0 },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1663,7 +1675,9 @@
                 ambientLight.color.setHex(0xefe1a7);
                 ambientLight.intensity = 0.4;
               }
-              utils.map.setSky(levelData.sky || 1, function() {
+              let sky = levelData.sky || 1;
+              if (typeof levelData.sky !== "undefined") sky = levelData.sky;
+              utils.map.setSky(sky, function() {
                 setTimeout(next, 500);
                 if (level == 1) utils.game.start();
               });
@@ -1848,7 +1862,6 @@
             updateSettings();
             renderer.shadowMap.needsUpdate = true;
             utils.game.controls.switchView(0);
-            onWindowResize();
             animate();
             sounds.startup();
             PointerControls.isLocked = false;
@@ -1856,9 +1869,14 @@
           pause: function() {
             if (utils.data.paused) {
               utils.data.paused = false;
+              let timePassed = Date.now() - utils.data.pausedTimestamp;
+              utils.data.levelStartTime += timePassed;
               document.querySelector("#pause-menu").style.display = "none";
+              animate();
             } else {
               utils.data.paused = true;
+              utils.data.pausedTimestamp = Date.now();
+              updateSettings(false);
               document.querySelector("#pause-menu").style.display = "block";
               if (document.exitPointerLock) document.exitPointerLock();
             }
@@ -2124,16 +2142,11 @@
           if (event.key == "ArrowUp" && vehicle.currentControl != "Shifter") utils.game.controls.throttle();
           if (event.key == "[") utils.game.controls.leftBlinker();
           if (event.key == "]") utils.game.controls.rightBlinker();
-          if (event.key == "p") {
-            if (event.ctrlKey || event.metaKey) {
-              event.preventDefault(), utils.game.pause();
-            } else {
-              utils.game.controls.shift("park");
-            }
-          }
+          if (event.key == "p") utils.game.controls.shift("park");
           if (event.key == "r") utils.game.controls.shift("reverse");
           if (event.key == "d") utils.game.controls.shift("drive");
           if (event.key == "Enter") event.preventDefault(), utils.game.controls.simplePark();
+          if (event.key == " ") utils.game.pause();
         }
       });
       document.addEventListener("keyup", function(event) {
