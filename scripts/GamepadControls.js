@@ -1,6 +1,6 @@
 GamepadControls = {
   isConnected: false,
-  speed: 0.6,
+  speed: 1,
   buttonDownEvent: function(key, value) {
     if (buttonActions[key]) {
       if (!utils.data.allowedToUseControls && key != "a" && key != "b") return;
@@ -258,9 +258,11 @@ buttonActions = {
     if (isPressed) {
       const fullBrakeDelay = 500;
       brake = value * Math.min((Date.now() - utils.data.timeOfBrake) / fullBrakeDelay, 1) * 500;
-      utils.game.controls.brake();
+      utils.game.controls.brake(!buttonRepeats.lt);
+      buttonRepeats.lt = true;
     } else {
       utils.game.controls.stopBrake();
+      buttonRepeats.lt = false;
     }
   },
   "up": function(value, isPressed) {
@@ -333,10 +335,22 @@ buttonActions = {
         buttonRepeats.b = true;
         if (swal.getState().isOpen) {
           if (document.querySelector(".swal-button--confirm").textContent.includes("[B]")) document.querySelector(".swal-button--confirm").click();
+        } else if (utils.data.paused) {
+          utils.game.pause();
         }
       }
     } else {
       buttonRepeats.b = false;
+    }
+  },
+  "start": function(value, isPressed) {
+    if (isPressed) {
+      if (!buttonRepeats.start) {
+        buttonRepeats.start = true;
+        utils.game.pause();
+      }
+    } else {
+      buttonRepeats.start = false;
     }
   }
 };

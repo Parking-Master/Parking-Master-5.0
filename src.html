@@ -418,7 +418,7 @@
           document.querySelector("#game").removeAttribute("data-reduce-screen-size");
         }
         if (!settings.performance.backgroundCars) spawnedPropCars.forEach(car => scene.remove(car));
-        document.querySelector("#performance-slider-percent").textContent = settings.performance.slider + "%";
+        document.querySelector("#performance-slider-percent").textContent = settings.performance.slider + "%" + (settings.performance.slider == 75 ? " (Default)" : "");
         document.querySelector("input[name='slider']").value = settings.performance.slider;
         document.querySelector("#performance-resolution-percent").textContent = settings.performance.resolution + "%";
         document.querySelector("input[name='resolution']").value = settings.performance.resolution;
@@ -515,7 +515,10 @@
 
       let frameCount = 0;
       function animate(now) {
-        if (utils.data.paused) return;
+        if (utils.data.paused) {
+          GamepadControls.update();
+          return requestAnimationFrame(animate);
+        }
         const deltaTime = Math.min(0.04, clock.getDelta());
         const time = Date.now();
         world.step(deltaTime);
@@ -1597,11 +1600,13 @@
             { time: 25, spawnPoint: [0,0,0,0,Math.PI/2,0] },
             { time: 20, spawnPoint: [-5,0,2,0,Math.PI/2,0] },
             { time: 15, spawnPoint: [7.5,0,9,0,-Math.PI/2,0], sky: 2, directionalLight: [0xf4e6bc, 0.1], ambientLight: [0xffbb55, 0.3] },
-            { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
-            { time: 25, spawnPoint: [18.62,0,1.36,0,-Math.PI/2,0] },
+            { time: 25, spawnPoint: [10,0,1,0,-Math.PI/2,0] },
+            { time: 25, spawnPoint: [18,0,1,0,-Math.PI/2,0] },
             { time: 20, spawnPoint: [8,0,0,0,-Math.PI/2,0] },
             { time: 15, spawnPoint: [.7,0,-3.5,0,0,0] },
             { time: 12, spawnPoint: [-8,0,-6,0,0,0], sky: 0 },
+            { time: 20, spawnPoint: [11.5,0,-1,0,-Math.PI/2,0] },
+            { time: 15, spawnPoint: [25,0,.85,0,-Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1626,6 +1631,16 @@
             }
             utils.map.removeAllTrafficCones();
             if (!utils.data.isBonusLevel) utils.map.addDefaultTrafficCones();
+            if (level != utils.game.currentLevel && settings.performance.replay && utils.data.replayFrames.length > 0 && level != 1) {
+              let clips = JSON.parse(localStorage["replay-clips"] || "{}");
+              let entry = {
+                propCars: utils.map.propCars.map(car => propCars.indexOf(propCars.filter(x => x.name == car.mesh.children[0].name)[0])),
+                frames: utils.data.replayFrames
+              }
+              clips["Level " + utils.game.currentLevel] = btoa(JSON.stringify(entry));
+              // localStorage.setItem("replay-clips", JSON.stringify(clips));
+              utils.data.replayFrames = [];
+            }
             if (level == utils.game.currentLevel) return next();
             utils.map.removeAllPropCars();
             previousProgress = 0;
@@ -1872,12 +1887,13 @@
               let timePassed = Date.now() - utils.data.pausedTimestamp;
               utils.data.levelStartTime += timePassed;
               document.querySelector("#pause-menu").style.display = "none";
-              animate();
+              sounds.resumeAll();
             } else {
               utils.data.paused = true;
               utils.data.pausedTimestamp = Date.now();
               updateSettings(false);
               document.querySelector("#pause-menu").style.display = "block";
+              sounds.pauseAll();
               if (document.exitPointerLock) document.exitPointerLock();
             }
           },
@@ -1912,11 +1928,11 @@
               utils.data.initialViewSwitch = true;
               vehicle.currentView = newView;
             },
-            brake: function() {
+            brake: function(doSound = true) {
               if (utils.data.throttle) utils.game.controls.stopThrottle();
               vehicle.physics.brake = true;
               utils.vehicle.setLights(true, "brake");
-              if (Date.now() - utils.data.lastThrottle < 500 || Math.floor(Math.random() * 4) == 0) sounds.pedal();
+              if (doSound && (Date.now() - utils.data.lastThrottle < 500 || Math.floor(Math.random() * 4) == 0)) sounds.pedal();
             },
             stopBrake: function() {
               vehicle.physics.brake = false;
