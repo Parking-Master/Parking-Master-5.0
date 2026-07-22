@@ -164,6 +164,26 @@ sounds = {
     }
     sounds.library.cars.ambienceInterior.gain.gain.value = 0.5 + (vehicle.speedMPH / 7);
   },
+  pauseAll: function() {
+    for (sound in sounds.library) {
+      if (sound != "cars") {
+        if (sounds.library[sound].playing) sounds.library[sound].wasPlaying = true;
+        sounds.library[sound].pause();
+      }
+    }
+    for (sound in sounds.library.cars) {
+      if (sounds.library.cars[sound].playing) sounds.library.cars[sound].wasPlaying = true;
+      sounds.library.cars[sound].pause();
+    }
+  },
+  resumeAll: function() {
+    for (sound in sounds.library) {
+      if (sound != "cars" && sounds.library[sound].wasPlaying) sounds.library[sound].play(), sounds.library[sound].wasPlaying = false;
+    }
+    for (sound in sounds.library.cars) {
+      if (sounds.library.cars[sound].wasPlaying) sounds.library.cars[sound].play(), sounds.library.cars[sound].wasPlaying = false;
+    }
+  },
   collision: function(power) {
     if (power < 6) {
       if (vehicle.currentView == 0) {
