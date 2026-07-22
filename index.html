@@ -438,10 +438,15 @@
         color: #47b3ff;
         font-size: 24px;
       }
+      .swal-content .option {
+        margin-top: 15px;
+        display: block;
+      }
     </style>
   </head>
   <body>
     <audio id="menu-audio" src="https://cdn.jsdelivr.net/gh/Parking-Master/Parking-Master@latest/index/menu-audio.mp3" autoplay="" loop=""></audio>
+    <script src="scripts/sweetalert.js"></script>
     <div class="loading-banner">
       <div class="spinner"></div>
       <div class="loading-progress">0%</div>
@@ -449,7 +454,7 @@
     <div class="nav-bar">
       <a href="login.html"><button class="button nav-button nav-button-login">Log in <img src="images/menu/arrow-right.png" class="arrow-icon"></button></a>
       <a href="signup.html"><button class="button nav-button nav-button-login" onclick="location.href = 'signup.html'">Sign up <img src="images/menu/arrow-right.png" class="arrow-icon"></button></a>
-      <button class="button nav-button nav-button-settings"></button>
+      <a href="javascript:openSettings()"><button class="button nav-button nav-button-settings"></button></a>
       <div class="account">
         <div class="profile-picture"></div>
         <div class="username">GuestUser1234</div>
@@ -486,6 +491,20 @@
         requestAnimationFrame(animate);
       }
       animate();
+      function openSettings() {
+        let content = document.createElement("div");
+        content.innerHTML = `
+        <a class="option" href="#">Edit Profile</a>
+        <a class="option" href="#">Leaderboard</a>
+        <a class="option" href="#">Your Game Clips</a>
+        <a class="option" href="#">Performance</a>
+        <a class="option" href="https://github.com/Parking-Master/Parking-Master-5.0/issues">Report a Bug</a>
+        `;
+        swal({
+          title: "Options",
+          content: content
+        });
+      }
     </script>
   </body>
 </html>
