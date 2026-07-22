@@ -181,7 +181,7 @@
         border: none;
         border-top: 1px solid #555;
       }
-      .mobile-ui .button.switch-view, .mobile-ui .button.park {
+      .mobile-ui .button.switch-view, .mobile-ui .button.park, .mobile-ui .button.pause {
         position: absolute;
         right: 10px;
         padding: 10px;
@@ -199,6 +199,14 @@
       .mobile-ui .button.park {
         bottom: 80px;
       }
+      .mobile-ui .button.pause {
+        bottom: 20px;
+        right: 100px;
+      }
+      .mobile-ui .button.pause img {
+        filter: invert(1);
+        width: 18px;
+      }
       @media only screen and (max-height:450px) {
         .loading-banner {
           height: 60px;
@@ -212,7 +220,7 @@
           height: 140px;
           bottom: 210px;
         }
-        .mobile-ui .button.switch-view, .mobile-ui .button.park {
+        .mobile-ui .button.switch-view, .mobile-ui .button.park, .mobile-ui .button.pause {
           padding: 8px;
           font-size: 14px;
         }
@@ -234,6 +242,9 @@
         }
         .mobile-ui .button.park {
           bottom: 20px;
+        }
+        .mobile-ui .button.pause {
+          right: 150px;
         }
         .mobile-ui .shifter-wrapper {
           bottom: 210px;
@@ -325,7 +336,8 @@
           <button class="button shifter-button-drive" ontouchstart="utils.game.controls.shift('drive')">D</button>
         </div>
         <button class="button park" ontouchstart="utils.game.controls.simplePark()">Park!</button>
-        <button class="button switch-view" ontouchstart="utils.game.controls.switchView()">Switch View</button>
+        <button class="button switch-view" ontouchstart="utils.game.controls.switchView()">View</button>
+        <button class="button pause" ontouchstart="utils.game.pause()">Pause</button>
         <div class="steering-wheel"></div>
       </div>
       <img class="howtoplay" src="images/howtoplay.png">
@@ -1607,6 +1619,7 @@
             { time: 12, spawnPoint: [-8,0,-6,0,0,0], sky: 0 },
             { time: 20, spawnPoint: [11.5,0,-1,0,-Math.PI/2,0] },
             { time: 15, spawnPoint: [25,0,.85,0,-Math.PI/2,0] },
+            { time: 15, spawnPoint: [-9,0,3,0,Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
