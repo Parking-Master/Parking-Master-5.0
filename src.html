@@ -7,7 +7,7 @@
     <style>
       @font-face {
         font-family: "Toxigenesis";
-        src: url(fonts/Toxigenesis.ttf);
+        src: url(/fonts/Toxigenesis.ttf);
       }
       html, body {
         margin: 0;
@@ -134,7 +134,7 @@
         right: 100px;
         width: 100px;
         height: 100px;
-        background-image: url(images/mobile-ui/left-pedal.png);
+        background-image: url(/images/mobile-ui/left-pedal.png);
         background-color: transparent;
         background-repeat: no-repeat;
         background-size: 100px;
@@ -145,7 +145,7 @@
         right: 10px;
         width: 70px;
         height: 160px;
-        background-image: url(images/mobile-ui/right-pedal.png);
+        background-image: url(/images/mobile-ui/right-pedal.png);
         background-color: transparent;
         background-repeat: no-repeat;
         background-size: 70px;
@@ -156,7 +156,7 @@
         width: 200px;
         height: 200px;
         left: 0;
-        background-image: url(images/mobile-ui/steering-wheel.png);
+        background-image: url(/images/mobile-ui/steering-wheel.png);
         background-repeat: no-repeat;
         background-size: cover;
         transition: transform .1s;
@@ -314,16 +314,17 @@
     </style>
   </head>
   <body>
-    <script src="scripts/three.js"></script>
-    <script src="scripts/GLTFLoader.js"></script>
-    <script src="scripts/DecalGeometry.js"></script>
-    <script src="scripts/cannon.js"></script>
-    <script src="scripts/PointerLockControls.js"></script>
-    <script src="scripts/GamepadControls.js"></script>
-    <script src="scripts/TouchScreenControls.js"></script>
-    <script src="scripts/particles.js"></script>
-    <script src="scripts/sounds.js"></script>
-    <script src="scripts/sweetalert.js"></script>
+    <script src="/scripts/three.js"></script>
+    <script src="/scripts/GLTFLoader.js"></script>
+    <script src="/scripts/DecalGeometry.js"></script>
+    <script src="/scripts/cannon.js"></script>
+    <script src="/scripts/PointerLockControls.js"></script>
+    <script src="/scripts/GamepadControls.js"></script>
+    <script src="/scripts/TouchScreenControls.js"></script>
+    <script src="/scripts/particles.js"></script>
+    <script src="/scripts/lensflare.js"></script>
+    <script src="/scripts/sounds.js"></script>
+    <script src="/scripts/sweetalert.js"></script>
     <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <div id="game">
       <canvas class="ui"></canvas>
@@ -340,7 +341,7 @@
         <button class="button pause" ontouchstart="utils.game.pause()">Pause</button>
         <div class="steering-wheel"></div>
       </div>
-      <img class="howtoplay" src="images/howtoplay.png">
+      <img class="howtoplay" src="/images/howtoplay.png">
     </div>
     <div id="pause-menu">
       <div class="pause-menu-wrapper pause-menu-1">
@@ -380,7 +381,7 @@
     </div>
     <script>
       if (!localStorage["points"]) localStorage.setItem("points", 0);
-      document.querySelector(".loading").style.backgroundImage = "url(images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
+      document.querySelector(".loading").style.backgroundImage = "url(/images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
 
       function generateUUID() {
         return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
@@ -499,7 +500,7 @@
       const eulers = [new THREE.Euler(), new THREE.Euler(), new THREE.Euler()];
       const quaternions = [new CANNON.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
       const box3 = new THREE.Box3();
-      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("images/effects/shattered_window.png")];
+      const materials = [new THREE.MeshBasicMaterial({ color: 0x555555, map: new THREE.TextureLoader().load("/images/effects/tire_marks.png"), polygonOffset: true, polygonOffsetFactor: -4, transparent: true, opacity: 0.5, depthWrite: false }), new THREE.TextureLoader().load("/images/effects/shattered_window.png")];
       const objects = {};
       const loadingManager = new THREE.LoadingManager();
 
@@ -1449,6 +1450,7 @@
           collisionMap: [],
           levelCollisionMap: [],
           currentSkyType: null,
+          lensflare: new THREE.Lensflare(),
           initialize: function() {
             new THREE.GLTFLoader(loadingManager).load("models/levels/main.glb", function(model) {
               map = model.scene;
@@ -1494,6 +1496,11 @@
                   body.quaternion.copy(child.quaternion);
                 }
               });
+              const textureLoader = new THREE.TextureLoader();
+              utils.map.lensflare.addElement(new THREE.LensflareElement(textureLoader.load("/images/effects/lensflare/flare0.png"), 700, 0.0));
+              utils.map.lensflare.addElement(new THREE.LensflareElement(textureLoader.load("/images/effects/lensflare/flare1.png"), 200, 0.25));
+              utils.map.lensflare.addElement(new THREE.LensflareElement(textureLoader.load("/images/effects/lensflare/flare3.png"), 60, 0.6));
+              utils.map.lensflare.addElement(new THREE.LensflareElement(textureLoader.load("/images/effects/lensflare/hexangle.png"), 70, 1.0));
               map.remove(collisionMap);
               sky = new THREE.Mesh(new THREE.SphereGeometry(500, 25, 25), new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false }));
               sky.rotation.y = 2.2;
@@ -1591,14 +1598,17 @@
           setSky: function(type, callback) {
             if (type == utils.map.currentSkyType) return callback();
             utils.map.currentSkyType = type;
-            sky.material.map = new THREE.TextureLoader().load("images/skies/" + type + ".png");
-            new THREE.TextureLoader().load("images/skies/" + type + "_envmap.png", function(texture) {
-              utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
-              scene.traverse(child => {
-                if (child.userData.useEnvMap) child.material.envMap = utils.vehicle.envMap;
+            sky.material.map = new THREE.TextureLoader().load("/images/skies/" + type + ".png");
+            new THREE.TextureLoader().load("/images/skies/" + type + ".png", function(skyTexture) {
+              sky.material.map = skyTexture;
+              new THREE.TextureLoader().load("/images/skies/" + type + "_envmap.png", function(texture) {
+                utils.vehicle.envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
+                scene.traverse(child => {
+                  if (child.userData.useEnvMap) child.material.envMap = utils.vehicle.envMap;
+                });
+                renderer.render(scene, camera);
+                callback();
               });
-              renderer.render(scene, camera);
-              callback();
             });
           }
         },
@@ -1620,6 +1630,8 @@
             { time: 20, spawnPoint: [11.5,0,-1,0,-Math.PI/2,0] },
             { time: 15, spawnPoint: [25,0,.85,0,-Math.PI/2,0] },
             { time: 15, spawnPoint: [-9,0,3,0,Math.PI/2,0] },
+            { time: 20, spawnPoint: [-7,0,-1.3,0,-Math.PI/2,0], sky: 3, directionalLight: [0xf4e6bc, 1.6, [-50, 10, -5]], ambientLight: [0xffddaa, 0.4], lensflare: true },
+            { time: 30, spawnPoint: [-7,0,-1.3,0,-Math.PI/2,0] },
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1661,7 +1673,7 @@
             document.querySelector(".progress-bar").style.width = "";
             utils.game.currentLevel = level;
             utils.data.realLevel = utils.game.currentLevel - Math.floor(utils.game.currentLevel / 5);
-            const levelModel = utils.data.isBonusLevel ? "bonus" + (level / 5) : "lvl" + utils.data.realLevel;
+            const levelModel = level == 15 ? "lvl13" : utils.data.isBonusLevel ? "bonus" + (level / 5) : "lvl" + utils.data.realLevel;
             new THREE.GLTFLoader(loadingManager).load("models/levels/" + levelModel + ".glb", function(model) {
               if (utils.game.parkingLot != null) scene.remove(utils.game.parkingLot);
               utils.game.parkingLot = model.scene;
@@ -1684,7 +1696,10 @@
                   });
                 }
               });
-              if (utils.data.isBonusLevel) {
+              if (level == 15) {
+                utils.map.useDefaultMap();
+                document.title = "Parking Master 5.0 · Final Level";
+              } else if (utils.data.isBonusLevel) {
                 utils.map.useLevelAsMap();
                 document.title = "Parking Master 5.0 · Bonus Level";
               } else {
@@ -1695,14 +1710,19 @@
               if (levelData.directionalLight) {
                 directionalLight.color.setHex(levelData.directionalLight[0]);
                 directionalLight.intensity = levelData.directionalLight[1];
+                if (typeof levelData.directionalLight[2] !== "undefined") directionalLight.position.set(levelData.directionalLight[2][0], levelData.directionalLight[2][1], levelData.directionalLight[2][2]);
                 ambientLight.color.setHex(levelData.ambientLight[0]);
                 ambientLight.intensity = levelData.ambientLight[1];
+                if (levelData.lensflare) directionalLight.add(utils.map.lensflare);
               } else {
                 directionalLight.color.setHex(0xf4e6bc);
                 directionalLight.intensity = 1.6;
+                directionalLight.position.set(-40, 50, 0);
                 ambientLight.color.setHex(0xefe1a7);
                 ambientLight.intensity = 0.4;
+                directionalLight.remove(utils.map.lensflare);
               }
+              renderer.shadowMap.needsUpdate = true;
               let sky = levelData.sky || 1;
               if (typeof levelData.sky !== "undefined") sky = levelData.sky;
               utils.map.setSky(sky, function() {
@@ -1793,13 +1813,13 @@
               }
               title = "10/10";
             } else if (parkingSpot.type == "blueSpot") {
-              icon = "images/bluespot.png";
+              icon = "/images/bluespot.png";
               text = "You parked in a bluespot! You earned an extra point.";
               points = 2;
             } else if (parkingSpot.type == "specialSpot") {
               const availableCars = ["Mini_Cooper", "Ford_Victoria"];
               const chosenCar = availableCars[Math.floor(Math.random() * availableCars.length)];
-              icon = "images/cars/" + chosenCar + ".png";
+              icon = "/images/cars/" + chosenCar + ".png";
               text = "You unlocked a new car! You can get in it after this game ends.\n\n" + utils.vehicle.vehicleNames[chosenCar];
               // Add logic here so that players get points if they already own all cars
             } else if (parkingSpot.type == "handicapSpot") {
@@ -1822,7 +1842,7 @@
                 utils.data.allowedToUseControls = true;
                 return utils.game.gameOver("danger");
               } else {
-                icon = "images/50pts.png";
+                icon = "/images/50pts.png";
                 text = "You earned 50 extra points!";
                 points = 50;
               }
@@ -1847,7 +1867,7 @@
             if (parkingSpot.type == "specialSpot") document.querySelector(".swal-icon img").style = "border-radius: 10px; width: 120px; border-bottom: 5px solid gold";
             sounds.success();
             sounds.stopTimeLow();
-            document.querySelector(".loading").style.backgroundImage = "url(images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
+            document.querySelector(".loading").style.backgroundImage = "url(/images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
             utils.data.moneyText = "$" + (points * 100);
             utils.scheduleObject({}, "moneyText", 2000);
             return true;
@@ -2067,6 +2087,7 @@
             const secondsLeft = ("." + minutesLeft.toString().split(".")[1]) * 60;
             const formattedTime = `${Math.floor(minutesLeft)}:${("0" + Math.floor(secondsLeft)).slice(-2)}`;
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            if (utils.game.currentLevel == 15 && !utils.data.countdown) return ctx.fillStyle = "#ffffff", ctx.font = "50px Toxigenesis", ctx.shadowColor = "#000000", ctx.shadowBlur = 1, ctx.textAlign = "center", ctx.fillText("Final Level", window.innerWidth / 2, window.innerHeight / 2);
             ctx.beginPath();
             ctx.fillStyle = "#ffffff";
             ctx.moveTo(170, window.innerHeight - 90);
@@ -2139,7 +2160,11 @@
               ctx.fillText(levelTime, window.innerWidth / 2, 50 + 10);
             }
             ctx.font = "22px Toxigenesis";
-            if (utils.data.isBonusLevel) ctx.fillText("Bonus Level", window.innerWidth / 2, 90);
+            if (utils.game.currentLevel == 15) {
+              ctx.fillText("Final Level", window.innerWidth / 2, 90);
+            } else if (utils.data.isBonusLevel) {
+              ctx.fillText("Bonus Level", window.innerWidth / 2, 90);
+            }
             ctx.textAlign = "left";
             ctx.fillStyle = "#dddddd";
             if (!utils.data.isBonusLevel) ctx.fillText("Level " + utils.data.realLevel, 20, window.innerHeight - 202);

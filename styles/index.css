@@ -1,0 +1,456 @@
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+  100% { 
+    transform: rotate(360deg);
+  }
+}
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden !important;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #fff;
+}
+.nav-bar {
+  position: absolute;
+  width: 100%;
+  height: 100px;
+  left: 0;
+  right: 0;
+  top: 0;
+  margin: 0;
+}
+.nav-bar .button.nav-button {
+  position: relative;
+  background: #aab7ec;
+  border: 4px solid #98b6fc;
+  border-radius: 10px;
+  background-size: 50%;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 4px 0 #ddd;
+  cursor: pointer;
+  color: #fff;
+  font-size: 18px;
+  padding: 2px 10px;
+  top: 20px;
+  left: 20px;
+  margin-left: 8px;
+}
+.nav-bar .button.nav-button-settings {
+  width: 36px;
+  height: 36px;
+  background-image: url(/images/menu/settings.png);
+  background-size: 100%;
+  float: right;
+  left: -20px;
+}
+.header {
+  position: relative;
+  z-index: 6;
+  pointer-events: none !important;
+}
+.header .heading {
+  position: relative;
+  color: #fff;
+  /* text-shadow: -2px -2px 0 #333, 2px -2px 0 #333, -2px 2px 0 #333, 2px 2px 0 #333; */
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 2px;
+  -webkit-text-stroke-color: #333;
+  font-weight: 600;
+  font-size: 65px;
+  text-align: center;
+  margin: 0;
+  top: 20px;
+}
+.header .version {
+  text-align: center;
+  font-size: 150px;
+  font-weight: 600;
+  color: #999;
+  text-shadow: 5px 10px #000;
+  letter-spacing: 8px;
+  font-family: "Roboto", Arial;
+}
+.buttons-wrapper {
+  position: absolute;
+  width: 900px;
+  height: 210px;
+  left: 50%;
+  top: 50%;
+  margin-left: -450px;
+  margin-top: -30px;
+  z-index: 7;
+}
+.buttons-wrapper .button {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: #aab7ec;
+  border: 4px solid #98b6fc;
+  border-radius: 100%;
+  background-size: 50%;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 6px 0 #ddd;
+  cursor: pointer;
+  transition: transform .2s;
+}
+.buttons-wrapper .button:hover {
+  transform: scale(1.1);
+}
+.buttons-wrapper .play-button {
+  left: 0;
+  bottom: 0;
+  background-image: url(/images/menu/play-button.png);
+}
+.buttons-wrapper .cars-button {
+  top: 0;
+  left: 50%;
+  margin-left: -50px;
+  background-image: url(/images/menu/cars-button.png);
+}
+.buttons-wrapper .multiplayer-button {
+  right: 0;
+  bottom: 0;
+  background-image: url(/images/menu/multiplayer-button.png);
+}
+.current-car-wrapper {
+  position: absolute;
+  bottom: 0;
+  width: 850px;
+  left: 50%;
+  margin-left: -425px;
+}
+.current-car-wrapper .current-car-image {
+  position: relative;
+  width: 100%;
+  top: 130px;
+  margin-bottom: 10px;
+}
+.current-car-title, .current-car-text {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  font-size: 18px;
+}
+.current-car-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.trees {
+  position: absolute;
+  z-index: 5;
+  width: 115%;
+  margin-left: -7.5%;
+  bottom: -100px;
+  pointer-events: none !important;
+}
+.skid-marks {
+  position: absolute;
+  z-index: 4;
+  width: 1500px;
+  left: 0;
+  right: 0;
+  top: 120px;
+  margin: 0 auto;
+  pointer-events: none !important;
+}
+.arrow-icon {
+  float: right;
+  margin-right: -10px;
+}
+.account {
+  position: relative;
+  width: 250px;
+  float: right;
+  top: 16px;
+  right: 10px;
+  pointer-events: none !important;
+}
+.account .profile-picture {
+  width: 55px;
+  height: 55px;
+  background-image: url(https://cdn.jsdelivr.net/gh/Parking-Master/Parking-Master@latest/img/profile-picture.png);
+  background-size: 100%;
+  float: left;
+  margin-right: 6px;
+}
+.account .username {
+  display: inline-block;
+  border-bottom: 2px solid #333;
+  font-size: 20px;
+}
+.account .points {
+  font-size: 26px;
+}
+.copyright {
+  position: absolute;
+  right: 10px;
+  bottom: 20px;
+  z-index: 6;
+  font-family: "Roboto", Arial;
+  font-weight: 400;
+  color: #888;
+}
+a {
+  color: #9ab8ff !important;
+}
+a[data-disabled] {
+  color: #ccc !important;
+  pointer-events: none;
+}
+.tippy-box {
+  background-color: #ccc;
+  color: #fff;
+}
+.tippy-box::before {
+  border: none;
+  background: #ddd;
+}
+.tippy-arrow {
+  background: #ddd;
+}
+@media only screen and (max-height:700px) {
+  .skid-marks {
+    width: 1200px;
+  }
+  .current-car-wrapper {
+    width: 700px;
+    margin-left: -350px;
+  }
+}
+@media only screen and (max-height:640px) {
+  .skid-marks {
+    width: 1000px;
+  }
+}
+@media only screen and (max-height:590px) {
+  .skid-marks {
+    width: 900px;
+  }
+  .header .version {
+    font-size: 120px;
+    text-shadow: 2px 5px #000;
+    letter-spacing: 4px;
+  }
+  .buttons-wrapper {
+    width: 700px;
+    margin-left: -350px;
+  }
+  .buttons-wrapper .button {
+    width: 85px;
+    height: 85px;
+  }
+}
+@media only screen and (max-height:540px) {
+  .current-car-text, .current-car-title {
+    display: none;
+  }
+  .current-car-image {
+    padding-bottom: 20px;
+  }
+  .header .heading {
+    font-size: 50px;
+    top: 10px;
+  }
+  .header .version {
+    font-size: 90px;
+  }
+  .buttons-wrapper {
+    height: 180px;
+    margin-top: -10px;
+  }
+  .skid-marks {
+    top: 90px;
+  }
+}
+@media only screen and (max-height:490px) {
+  .skid-marks {
+    width: 700px;
+    top: 80px;
+  }
+  .buttons-wrapper {
+    margin-top: -30px;
+    width: 600px;
+    height: 170px;
+    margin-left: -300px;
+  }
+  .buttons-wrapper .button {
+    box-shadow: 0 4px 0 #ddd;
+    width: 75px;
+    height: 75px;
+  }
+}
+@media only screen and (max-height:450px) {
+  .skid-marks {
+    top: 65px;
+    width: 90% !important;
+  }
+  .buttons-wrapper {
+    width: 550px;
+    margin-left: -275px;
+    height: 150px;
+    margin-top: -20px;
+  }
+  .buttons-wrapper .button {
+    width: 60px;
+    height: 60px;
+  }
+  .buttons-wrapper .cars-button {
+    margin-left: -30px;
+  }
+}
+@media only screen and (max-width:1100px) {
+  .skid-marks {
+    width: 95% !important;
+  }
+  .account {
+    width: 190px;
+  }
+  .account .profile-picture {
+    width: 45px;
+    height: 45px;
+  }
+  .account .username {
+    font-size: 16px;
+  }
+  .account .points {
+    font-size: 22px;
+  }
+}
+@media only screen and (max-width:880px) {
+  .account {
+    width: 120px;
+  }
+  .account .profile-picture {
+    display: none;
+  }
+  .account .username {
+    font-size: 16px;
+  }
+  .account .points {
+    font-size: 22px;
+  }
+  .nav-bar .button.nav-button {
+    left: 10px;
+    top: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    padding: 2px 6px;
+  }
+  .nav-bar .button.nav-button-settings {
+    left: -10px;
+    width: 32px;
+    height: 32px;
+  }
+  .arrow-icon {
+    height: 20px;
+  }
+  .header .heading {
+    font-size: 46px;
+    top: 5px;
+  }
+  .current-car-wrapper {
+    width: 650px;
+    margin-left: -325px;
+  }
+}
+@media only screen and (max-width:810px) {
+  .buttons-wrapper {
+    width: 500px;
+    margin-left: -250px;
+  }
+  .trees {
+    bottom: -50px;
+  }
+  .current-car-wrapper {
+    width: 600px;
+    margin-left: -300px;
+  }
+  .current-car-image {
+    padding-bottom: 30px;
+  }
+}
+@media only screen and (max-width:730px) {
+  .nav-bar .button.nav-button {
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 0 4px;
+  }
+  .nav-bar .button.nav-button-settings {
+    width: 24px;
+    height: 24px;
+  }
+  .arrow-icon {
+    height: 16px;
+  }
+}
+.loading-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  z-index: 999999;
+  opacity: 1;
+  transition: opacity .2s;
+  pointer-events: none !important;
+}
+.spinner {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border: 10px solid #ddd;
+  border-radius: 100%;
+  border-top: 10px solid #47b3ff;
+  left: 50%;
+  top: 50%;
+  margin-left: -90px;
+  margin-top: -90px;
+  box-sizing: border-box;
+  animation: spin 2s linear infinite;
+}
+.spinner + .loading-progress {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  display: flex;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  font-family: "Roboto", Arial;
+  color: #47b3ff;
+  font-size: 24px;
+}
+.swal-content .option {
+  margin-top: 15px;
+  display: block;
+}
+.swal-modal {
+  border-radius: 0;
+  font-family: "Roboto", arial;
+  font-weight: 500;
+}
+.swal-button {
+  border-radius: 0;
+  background: #333 !important;
+  box-shadow: none !important;
+}
+.swal-content h2 {
+  font-size: 24px;
+  font-weight: 300;
+  color: #333;
+  margin-top: 30px;
+}
