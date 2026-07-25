@@ -692,7 +692,8 @@
           currentReplayFrame: 0,
           defaultResolution: 70,
           paused: false,
-          pausedTimestamp: Date.now()
+          pausedTimestamp: Date.now(),
+          finalParkingSpotCount: 0
         },
         vehicles: {
           "Honda_Civic": {
@@ -1762,17 +1763,21 @@
             utils.game.controls.brake();
             sounds.stopTimeLow();
             if (utils.game.currentLevel == 15) {
-              swal({
-                title: "Game over",
-                text: reason == "crash" ? "You crashed!" : reason == "time" ? "You ran out of time!" : reason == "handicap" ? "You parked in a handicap spot. -10 Points." : "You parked in a danger spot.",
-                button: "Main Menu",
-                closeOnClickOutside: false,
-                closeOnEsc: false,
-                closeOnEnterKey: false,
-                closeOnSpaceKey: false,
-              }).then(function() {
-                location.replace("/");
-              });
+              if (reason == "time" && utils.data.finalParkingSpotCount >= 4) {
+                // Final prize logic here
+              } else {
+                swal({
+                  title: "Game over",
+                  text: reason == "time" ? "You ran out of time!" : "You crashed!",
+                  button: "Main Menu",
+                  closeOnClickOutside: false,
+                  closeOnEsc: false,
+                  closeOnEnterKey: false,
+                  closeOnSpaceKey: false
+                }).then(function() {
+                  location.replace("/");
+                });
+              }
             } else if (utils.data.isBonusLevel) {
               swal({
                 text: "You didn't earn any bonus points.",
@@ -1841,6 +1846,7 @@
               if (parkingSpot.parked) return false;
               parkingSpot.parked = true;
               parkingSpot.lines.material = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: .3 });
+              utils.data.finalParkingSpotCount++;
               return Notiflix.Notify.success("Nice job! Now on to the next spot."), false;
             }
             if (parkingSpot.type == "defaultSpot") {
@@ -2220,7 +2226,7 @@
             }
             ctx.font = "22px Toxigenesis";
             if (utils.game.currentLevel == 15) {
-              ctx.fillText("Final Level", window.innerWidth / 2, 90);
+              ctx.fillText(utils.data.finalParkingSpotCount + "/4 Spots", window.innerWidth / 2, 90);
             } else if (utils.data.isBonusLevel) {
               ctx.fillText("Bonus Level", window.innerWidth / 2, 90);
             }
