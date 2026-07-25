@@ -1631,7 +1631,7 @@
             { time: 15, spawnPoint: [25,0,.85,0,-Math.PI/2,0] },
             { time: 15, spawnPoint: [-9,0,3,0,Math.PI/2,0] },
             { time: 20, spawnPoint: [-7,0,-1.3,0,-Math.PI/2,0], sky: 3, directionalLight: [0xf4e6bc, 1.6, [-50, 10, -5]], ambientLight: [0xffddaa, 0.4], lensflare: true },
-            { time: 60, spawnPoint: [-7,0,-1.3,0,-Math.PI/2,0], sky: 4, directionalLight: [0xf4e6bc, 0], ambientLight: [0xff6600, 0.05], lightPoles: true }
+            { time: 60, spawnPoint: [-7,0,-1.3,0,-Math.PI/2,0], sky: 4, directionalLight: [0xf4e6bc, 0], ambientLight: [0xff6600, 0.02], lightPoles: true }
           ],
           loadLevel: function(level) {
             const levelData = utils.game.levels[level - 1];
@@ -1655,7 +1655,7 @@
               PointerControls.isLocked = false;
             }
             utils.map.removeAllTrafficCones();
-            if (!utils.data.isBonusLevel) utils.map.addDefaultTrafficCones();
+            if (!utils.data.isBonusLevel || level == 15) utils.map.addDefaultTrafficCones();
             if (level != utils.game.currentLevel && settings.performance.replay && utils.data.replayFrames.length > 0 && level != 1) {
               let clips = JSON.parse(localStorage["replay-clips"] || "{}");
               let entry = {
@@ -1838,6 +1838,8 @@
             let title = null;
             let text = "";
             if (utils.game.currentLevel == 15) {
+              if (parkingSpot.parked) return false;
+              parkingSpot.parked = true;
               parkingSpot.lines.material = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: .3 });
               return Notiflix.Notify.success("Nice job! Now on to the next spot."), false;
             }
@@ -1931,7 +1933,7 @@
             if (utils.game.currentLevel == 15) {
               document.querySelector(".ui").style.display = "none";
               let content = document.createElement("div");
-              content.innerHTML = "Park in as many spots as you can in <span style='color:#dd0000'>60 seconds</span>. You need to successfully park in at least <span style='color:#dd0000'>5 spots</span> before the time runs out in order to win. The more spots you park in, the better your final reward will be. <span style='color:#dd0000'>NO RETRIES!</span>";
+              content.innerHTML = "Park in as many spots as you can in <span style='color:#dd0000'>60 seconds</span>. You need to successfully park in at least <span style='color:#dd0000'>4 spots</span> before the time runs out in order to win. The more spots you park in, the better your final reward will be. <span style='color:#dd0000'>NO RETRIES!</span>";
               swal({
                 title: "Final Level",
                 content: content,
