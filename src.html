@@ -311,6 +311,17 @@
         margin-left: -250px;
         box-sizing: border-box;
       }
+      .prize-card {
+        width: 80px;
+        height: 80px;
+        border: 4px solid #fff;
+        box-shadow: -4px 8px 0px rgba(0, 0, 0, 0.5);
+        margin: 4px;
+        display: inline-block;
+        background-position: center;
+        background-size: 100%;
+        background-repeat: no-repeat;
+      }
     </style>
   </head>
   <body>
@@ -964,6 +975,7 @@
             "Toyota_RAV4": "2023 Toyota RAV4",
             "Mini_Cooper": "2014 Mini Cooper S",
             "Ford_Victoria": "2010 Ford Crown Victoria",
+            "Ford_F150": "2017 Ford F-150 Raptor"
           },
           cameraBob: function(intensity = 1, maxStep = 2) {
             let step = 0;
@@ -1765,6 +1777,54 @@
             if (utils.game.currentLevel == 15) {
               if (reason == "time" && utils.data.finalParkingSpotCount >= 4) {
                 // Final prize logic here
+                let content = document.createElement("div");
+                if (utils.data.finalParkingSpotCount <= 4) {
+                  content.innerHTML = `
+                  <div class="prize-card" data-prize="car.Toyota_RAV4" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Toyota_RAV4.png); background-size: 200%;"></div>
+                  <div class="prize-card" data-prize="pts.500" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/500pts.png)"></div>
+                  `;
+                } else if (utils.data.finalParkingSpotCount <= 5) {
+                  content.innerHTML = `
+                  <div class="prize-card" data-prize="car.Toyota_RAV4" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Toyota_RAV4.png); background-size: 200%;"></div>
+                  <div class="prize-card" data-prize="pts.1000" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/1000pts.png)"></div>
+                  <div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>
+                  `;
+                } else if (utils.data.finalParkingSpotCount <= 6) {
+                  content.innerHTML = `
+                  <div class="prize-card" data-prize="car.Toyota_RAV4" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Toyota_RAV4.png); background-size: 200%;"></div>
+                  <div class="prize-card" data-prize="pts.1000" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/1000pts.png)"></div>
+                  <br>
+                  <div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>
+                  <div class="prize-card" data-prize="mystery" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/mystery.png)"></div>
+                  `;
+                }
+                swal({
+                  title: "You won!",
+                  text: "You made it through every level! Click 'Next' to choose your prize.",
+                  button: "Next"
+                }).then(function() {
+                  swal({
+                    text: "Choose your prize:",
+                    content: content,
+                    button: false
+                  }).then(function() {
+                    let content = document.createElement("div");
+                    if (utils.data.chosenPrize.split(".")[0] == "car") {
+                      let car = utils.data.chosenPrize.split(".")[1];
+                      content.innerHTML = `
+                      <img src="/images/cars/${car}.png" style="border-radius: 10px; width: 120px; border-bottom: 5px solid gold">
+                      <p>${utils.vehicle.vehicleNames[car]}</p>
+                      `;
+                    }
+                    swal({
+                      title: "You won:",
+                      content: content,
+                      button: "Claim & Return to Menu"
+                    }).then(function() {
+                      location.replace("/");
+                    });
+                  });
+                });
               } else {
                 swal({
                   title: "Game over",
