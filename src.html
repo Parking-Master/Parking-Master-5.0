@@ -9,6 +9,14 @@
         font-family: "Toxigenesis";
         src: url(/fonts/Toxigenesis.ttf);
       }
+      @keyframes prize {
+        0% {
+          box-shadow: none;
+        }
+        50% {
+          box-shadow: 0 0 0 6px gold;
+        }
+      }
       html, body {
         margin: 0;
         width: 100%;
@@ -321,6 +329,9 @@
         background-position: center;
         background-size: 100%;
         background-repeat: no-repeat;
+      }
+      img.prize {
+        width: 200px;
       }
     </style>
   </head>
@@ -1808,21 +1819,75 @@
                     content: content,
                     button: false
                   }).then(function() {
-                    let content = document.createElement("div");
-                    if (utils.data.chosenPrize.split(".")[0] == "car") {
-                      let car = utils.data.chosenPrize.split(".")[1];
-                      content.innerHTML = `
-                      <img src="/images/cars/${car}.png" style="border-radius: 10px; width: 120px; border-bottom: 5px solid gold">
-                      <p>${utils.vehicle.vehicleNames[car]}</p>
-                      `;
+                    function next(animation = false) {
+                      let content = document.createElement("div");
+                      let prizeType = utils.data.chosenPrize.split(".")[0];
+                      let button = "Claim & Return to Menu";
+                      if (prizeType == "car") {
+                        let car = utils.data.chosenPrize.split(".")[1];
+                        content.innerHTML = `
+                        <img src="/images/cars/${car}.png" style="border-radius: 10px; width: 120px; border-bottom: 5px solid gold">
+                        <p>${utils.vehicle.vehicleNames[car]}</p>
+                        `;
+                      } else if (prizeType == "pts") {
+                        let points = utils.data.chosenPrize.split(".")[1];
+                        utils.data.moneyText = "$" + (points * 100);
+                        utils.scheduleObject({}, "moneyText", 2000);
+                        content.innerHTML = `
+                        <img src="/images/${points}pts.png" class="prize">
+                        `;
+                      } else if (prizeType == "license") {
+                        content.innerHTML = `
+                        <p>Parking Master 5.0 License</p>
+                        <img src="/images/license_template.png" class="prize">
+                        <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
+                        `;
+                      } else if (prizeType == "mystery") {
+                        content.innerHTML = `
+                        <p>Parking Master 5.0 License</p>
+                        <img src="/images/license_template.png" class="prize">
+                        <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
+                        `;
+                        button = false;
+                        let displayIndex = 0;
+                        let displayItems = {
+                          "car.Toyota_RAV": `<img src="/images/cars/Toyota_RAV4.png" class="prize">`,
+                          "car.Ford_F150": `<img src="/images/cars/Ford_F150.png" class="prize">`,
+                          "license": `<img src="/images/cars/license_template.png" class="prize">`,
+                          "pts.500": `<img src="/images/500pts.png" class="prize">`,
+                          "pts.1000": `<img src="/images/1000pts.png" class="prize">`
+                        };
+                        let lastDisplay = Date.now();
+                        let displayI = 0;
+                        let picker = setInterval(() => {
+                          let time = Date.now();
+                          if (time - lastDisplay > 100 + (displayI * 10)) {
+                            lastDisplay = time;
+                            displayI++;
+                            if (displayIndex >= Object.keys(displayItems).length) displayIndex = 0;
+                            let item = Object.values(displayItems)[displayIndex];
+                            let itemType = Object.keys(displayItems)[displayIndex];
+                            content.innerHTML = item;
+                            if (displayI > 20 + Math.floor(Math.random() * 15)) {
+                              utils.data.chosenPrize = itemType;
+                              next(true);
+                              return clearInterval(picker);
+                            }
+                            displayIndex++;
+                          }
+                        });
+                      }
+                      swal({
+                        title: "You won:",
+                        content: content,
+                        button: button
+                      }).then(function() {
+                        // Prize will be in utils.data.chosenPrize
+                        location.replace("/");
+                      });
+                      if (animation) content.querySelector("img").style.animation = "prize .75s step-end infinite";
                     }
-                    swal({
-                      title: "You won:",
-                      content: content,
-                      button: "Claim & Return to Menu"
-                    }).then(function() {
-                      location.replace("/");
-                    });
+                    next();
                   });
                 });
               } else {
