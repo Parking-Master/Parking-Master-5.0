@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parking Master 5.0 · Log in</title>
+    <title>Parking Master 5.0 · Sign up</title>
     <link rel="stylesheet" href="/styles/login.css">
   </head>
   <body>
@@ -11,16 +11,23 @@
       <div class="login-card">
         <div class="login-header">
           <img class="logo" src="/favicon.png">
-          <h2>Log in</h2>
-          <p>To Parking Master 5.0</p>
+          <h2>Sign up</h2>
+          <p>For Parking Master 5.0</p>
         </div>
         <form class="login-form" id="loginForm" novalidate>
           <div class="form-group">
             <div class="input-wrapper">
               <input type="email" id="email" name="email" required>
-              <label for="email">Username/Email</label>
+              <label for="email">Email Address</label>
             </div>
             <span class="error-message" id="emailError"></span>
+          </div>
+          <div class="form-group">
+            <div class="input-wrapper username-wrapper">
+              <input type="username" id="username" name="username" required>
+              <label for="username">Username</label>
+            </div>
+            <span class="error-message" id="usernameError"></span>
           </div>
           <div class="form-group">
             <div class="input-wrapper password-wrapper">
@@ -31,19 +38,15 @@
             <span class="error-message" id="passwordError"></span>
           </div>
           <div class="form-options">
-            <label class="remember-wrapper">
-              <input type="checkbox" id="remember" name="remember" checked>
-              <span class="checkbox-label"><span class="checkmark"></span> Remember me</span>
-            </label>
-            <a href="#" class="forgot-password">Forgot password?</a>
+            <a href="/terms-of-service.html" class="forgot-password">Terms of Service</a>
           </div>
           <button type="submit" class="login-btn">
-            <span class="btn-text">Log in</span>
+            <span class="btn-text">Sign up</span>
             <span class="btn-loader"></span>
           </button>
         </form>
         <div class="signup-link">
-          <p><a href="signup.html">Sign up instead</a></p>
+          <p><a href="login.html">Log in instead</a></p>
         </div>
       </div>
     </div>
@@ -69,11 +72,11 @@
           password.type = "text";
         }
       }
-      function login() {
+      function signup() {
         document.querySelector("button.login-btn .btn-text").style.opacity = 0;
         document.querySelector("button.login-btn .btn-loader").style.opacity = 1;
       }
-      document.querySelector("button.login-btn").addEventListener("click", event => (event.preventDefault(), login()));
+      document.querySelector("button.login-btn").addEventListener("click", event => (event.preventDefault(), signup()));
     </script>
   </body>
 </html>

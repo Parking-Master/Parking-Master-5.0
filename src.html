@@ -9,6 +9,10 @@
         font-family: "Toxigenesis";
         src: url(/fonts/Toxigenesis.ttf);
       }
+      @font-face {
+        font-family: "Brittany";
+        src: url(/fonts/Brittany.ttf);
+      }
       @keyframes prize {
         0% {
           box-shadow: none;
@@ -401,6 +405,7 @@
         <div class="loading-text">Loading...</div>
       </div>
     </div>
+    <div style="position:absolute;font-family:'Brittany';opacity:0">.</div>
     <script>
       if (!localStorage["points"]) localStorage.setItem("points", 0);
       document.querySelector(".loading").style.backgroundImage = "url(/images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
@@ -1787,7 +1792,6 @@
             sounds.stopTimeLow();
             if (utils.game.currentLevel == 15) {
               if (reason == "time" && utils.data.finalParkingSpotCount >= 4) {
-                // Final prize logic here
                 let content = document.createElement("div");
                 if (utils.data.finalParkingSpotCount <= 4) {
                   content.innerHTML = `
@@ -1800,7 +1804,7 @@
                   <div class="prize-card" data-prize="pts.1000" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/1000pts.png)"></div>
                   <div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>
                   `;
-                } else if (utils.data.finalParkingSpotCount <= 6) {
+                } else {
                   content.innerHTML = `
                   <div class="prize-card" data-prize="car.Toyota_RAV4" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Toyota_RAV4.png); background-size: 200%;"></div>
                   <div class="prize-card" data-prize="pts.1000" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/1000pts.png)"></div>
@@ -1812,21 +1816,29 @@
                 swal({
                   title: "You won!",
                   text: "You made it through every level! Click 'Next' to choose your prize.",
-                  button: "Next"
+                  button: "Next",
+                  closeOnClickOutside: false,
+                  closeOnEsc: false,
+                  closeOnEnterKey: false,
+                  closeOnSpaceKey: false
                 }).then(function() {
                   swal({
                     text: "Choose your prize:",
                     content: content,
-                    button: false
+                    button: false,
+                    closeOnClickOutside: false,
+                    closeOnEsc: false,
+                    closeOnEnterKey: false,
+                    closeOnSpaceKey: false
                   }).then(function() {
                     function next(animation = false) {
                       let content = document.createElement("div");
                       let prizeType = utils.data.chosenPrize.split(".")[0];
-                      let button = "Claim & Return to Menu";
+                      let button = "Claim";
                       if (prizeType == "car") {
                         let car = utils.data.chosenPrize.split(".")[1];
                         content.innerHTML = `
-                        <img src="/images/cars/${car}.png" style="border-radius: 10px; width: 120px; border-bottom: 5px solid gold">
+                        <img src="/images/cars/${car}.png" class="prize" style="border-radius: 10px; border-bottom: 5px solid gold">
                         <p>${utils.vehicle.vehicleNames[car]}</p>
                         `;
                       } else if (prizeType == "pts") {
@@ -1837,31 +1849,36 @@
                         <img src="/images/${points}pts.png" class="prize">
                         `;
                       } else if (prizeType == "license") {
-                        content.innerHTML = `
-                        <p>Parking Master 5.0 License</p>
-                        <img src="/images/license_template.png" class="prize">
-                        <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
-                        `;
+                        utils.game.generateLicense(function(src) {
+                          content.innerHTML = `
+                          <p>Parking Master 5.0 License</p>
+                          <img src="${src}" class="prize">
+                          <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
+                          `;
+                        });
                       } else if (prizeType == "mystery") {
-                        content.innerHTML = `
-                        <p>Parking Master 5.0 License</p>
-                        <img src="/images/license_template.png" class="prize">
-                        <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
-                        `;
                         button = false;
                         let displayIndex = 0;
                         let displayItems = {
-                          "car.Toyota_RAV": `<img src="/images/cars/Toyota_RAV4.png" class="prize">`,
+                          "car.Toyota_RAV4": `<img src="/images/cars/Toyota_RAV4.png" class="prize">`,
                           "car.Ford_F150": `<img src="/images/cars/Ford_F150.png" class="prize">`,
                           "license": `<img src="/images/cars/license_template.png" class="prize">`,
                           "pts.500": `<img src="/images/500pts.png" class="prize">`,
-                          "pts.1000": `<img src="/images/1000pts.png" class="prize">`
+                          "pts.1000": `<img src="/images/1000pts.png" class="prize">`,
+                          "pts.2000": `<img src="/images/2000pts.png" class="prize">`
                         };
+                        if (/*user.loggedIn*/true) {
+                          utils.game.generateLicense(function(src) {
+                            displayItems["license"] = `<img src="${src}" class="prize">`;
+                          });
+                        } else {
+                          delete displayItems["license"];
+                        }
                         let lastDisplay = Date.now();
                         let displayI = 0;
                         let picker = setInterval(() => {
                           let time = Date.now();
-                          if (time - lastDisplay > 100 + (displayI * 10)) {
+                          if (time - lastDisplay > 50 + (displayI * 20)) {
                             lastDisplay = time;
                             displayI++;
                             if (displayIndex >= Object.keys(displayItems).length) displayIndex = 0;
@@ -1880,10 +1897,31 @@
                       swal({
                         title: "You won:",
                         content: content,
-                        button: button
+                        button: button,
+                        closeOnClickOutside: false,
+                        closeOnEsc: false,
+                        closeOnEnterKey: false,
+                        closeOnSpaceKey: false
                       }).then(function() {
                         // Prize will be in utils.data.chosenPrize
-                        location.replace("/");
+                        let content = document.createElement("div");
+                        content.innerHTML = `
+                        Thanks for playing Parking Master 5.0!
+                        <br>
+                        <br>
+                        If you enjoyed this game, be sure to <a href="https://github.com/Parking-Master/Parking-Master-5.0" target="_blank" style="color:#ff0000">star this repository</a> on GitHub, and check out our other projects!
+                        `;
+                        swal({
+                          icon: "/favicon.png",
+                          content: content,
+                          button: "Main Menu",
+                          closeOnClickOutside: false,
+                          closeOnEsc: false,
+                          closeOnEnterKey: false,
+                          closeOnSpaceKey: false
+                        }).then(function() {
+                          location.replace("/");
+                        });
                       });
                       if (animation) content.querySelector("img").style.animation = "prize .75s step-end infinite";
                     }
@@ -2119,6 +2157,30 @@
               sounds.pauseAll();
               if (document.exitPointerLock) document.exitPointerLock();
             }
+          },
+          generateLicense: function(callback = () => {}) {
+            let profilePictureURL = "/images/menu/profile-picture.png";
+            let username = "ExampleUser123";
+            const canvas = document.createElement("canvas");
+            canvas.width = 500;
+            canvas.height = 500;
+            const ctx = canvas.getContext("2d");
+            const template = new Image();
+            template.src = "/images/license_template.png";
+            template.onload = function() {
+              ctx.drawImage(template, 0, 0, 500, 500);
+              const profilePicture = new Image();
+              profilePicture.src = profilePictureURL;
+              profilePicture.onload = function() {
+                ctx.drawImage(profilePicture, 50, 180, 170, 170);
+                ctx.fillStyle = "#000000";
+                ctx.font = "12px Brittany";
+                ctx.fillText(username, 290, 180);
+                ctx.font = "12px Arial";
+                ctx.fillText(new Date().toLocaleDateString(), 327, 218);
+                callback(canvas.toDataURL());
+              };
+            };
           },
           controls: {
             switchView: function(view = null) {
