@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parking Master 5.0 · Sign up</title>
-    <link rel="stylesheet" href="/styles/login.css">
+    <link rel="stylesheet" href="/styles/signup.css">
   </head>
   <body>
+    <script src="/scripts/users.js"></script>
     <div class="login-container">
       <div class="login-card">
         <div class="login-header">
@@ -73,8 +74,59 @@
         }
       }
       function signup() {
+        function resetButton() {
+          document.querySelector("button.login-btn .btn-text").style.opacity = 1;
+          document.querySelector("button.login-btn .btn-loader").style.opacity = 0;
+          document.querySelector("button.login-btn").disabled = false;
+        }
         document.querySelector("button.login-btn .btn-text").style.opacity = 0;
         document.querySelector("button.login-btn .btn-loader").style.opacity = 1;
+        document.querySelector("button.login-btn").disabled = true;
+        let _email = email.value.trim();
+        let _username = username.value.trim();
+        let _password = password.value.trim();
+        let error = false;
+        document.querySelectorAll(".error-message").forEach(x => (x.textContent = "", x.style.opacity = 0));
+        if (!_email || !/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/.test(_email)) {
+          document.querySelector("#emailError").textContent = "Please Enter a Valid Email Address.";
+          document.querySelector("#emailError").style.opacity = 1;
+          error = true;
+        }
+        if (!_username) {
+          document.querySelector("#usernameError").textContent = "Please Enter a Username.";
+          document.querySelector("#usernameError").style.opacity = 1;
+          error = true;
+        } else if (_username.length < 3 || _username.length > 30) {
+          document.querySelector("#usernameError").textContent = "Username must be between 3-30 characters.";
+          document.querySelector("#usernameError").style.opacity = 1;
+          error = true;
+        } else if (/[^A-Za-z0-9\_\-]/g.test(_username)) {
+          document.querySelector("#usernameError").textContent = "Username can only contain letters, numbers, underscores, and dashes.";
+          document.querySelector("#usernameError").style.opacity = 1;
+          error = true;
+        }
+        if (!_password) {
+          document.querySelector("#passwordError").textContent = "Please Enter a Password.";
+          document.querySelector("#passwordError").style.opacity = 1;
+          error = true;
+        } else if (_password.length < 8) {
+          document.querySelector("#passwordError").textContent = "Password must be at least 8 characters long.";
+          document.querySelector("#passwordError").style.opacity = 1;
+          error = true;
+        }
+        if (error) return setTimeout(() => resetButton(), 500);
+        users.signup(_email, _username, _password, function(success) {
+          if (success) {
+            document.querySelector(".login-header .logo").src = "/images/menu/email.png";
+            document.querySelector(".login-header h2").textContent = "Verify your email";
+            document.querySelector(".login-header p").textContent = "Click the link in the email to finish signing up.";
+            document.querySelector("form").style.display = "none";
+            document.querySelector(".signup-link a").textContent = "Go to login";
+            document.querySelector(".login-container").style = "height: 266px; margin-top: -133px";
+          } else {
+            resetButton();
+          }
+        });
       }
       document.querySelector("button.login-btn").addEventListener("click", event => (event.preventDefault(), signup()));
     </script>

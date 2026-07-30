@@ -1,0 +1,14 @@
+You will be redirected shortly...
+<script src="/scripts/users.js"></script>
+<script>
+  let params = new URLSearchParams(location.search);
+  let email = params.get("e");
+  let verificationKey = params.get("v");
+  if (email && verificationKey) users.verify(email, verificationKey, function(success) {
+    if (success) {
+      location.replace("/login.html?success=1");
+    } else {
+      location.replace("/login.html?success=0");
+    }
+  });
+</script>

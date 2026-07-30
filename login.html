@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="/styles/login.css">
   </head>
   <body>
+    <script src="/scripts/users.js"></script>
+    <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <div class="login-container">
       <div class="login-card">
         <div class="login-header">
@@ -17,10 +19,9 @@
         <form class="login-form" id="loginForm" novalidate>
           <div class="form-group">
             <div class="input-wrapper">
-              <input type="email" id="email" name="email" required>
-              <label for="email">Username/Email</label>
+              <input type="username" id="username" name="username" required>
+              <label for="username">Username</label>
             </div>
-            <span class="error-message" id="emailError"></span>
           </div>
           <div class="form-group">
             <div class="input-wrapper password-wrapper">
@@ -28,7 +29,7 @@
               <label for="password">Password</label>
               <button type="button" class="password-toggle" id="passwordToggle" onclick="togglePassword(this)"><span class="eye-icon"></span></button>
             </div>
-            <span class="error-message" id="passwordError"></span>
+            <span class="error-message" id="loginError"></span>
           </div>
           <div class="form-options">
             <label class="remember-wrapper">
@@ -48,6 +49,14 @@
       </div>
     </div>
     <script>
+      let verificationSuccess = new URLSearchParams(location.search).get("success");
+      if (verificationSuccess != null) {
+        if (verificationSuccess == "1") {
+          Notiflix.Notify.success("Success! Your account has been added. Log in to access it.");
+        } else {
+          Notiflix.Notify.failure("Signup failed. That link might be expired.");
+        }
+      }
       function updateInputs(input) {
         if (input.value == "") {
           input.classList.remove("has-value");
@@ -55,11 +64,11 @@
           input.classList.add("has-value");
         }
       }
-      let email = document.querySelector("input#email");
+      let username = document.querySelector("input#username");
       let password = document.querySelector("input#password");
-      email.addEventListener("input", () => updateInputs(email));
+      username.addEventListener("input", () => updateInputs(username));
       password.addEventListener("input", () => updateInputs(password));
-      updateInputs(email);
+      updateInputs(username);
       updateInputs(password);
       function togglePassword(button) {
         button.querySelector(".eye-icon").classList.toggle("show-password");
@@ -70,8 +79,32 @@
         }
       }
       function login() {
+        function resetButton() {
+          document.querySelector("button.login-btn .btn-text").style.opacity = 1;
+          document.querySelector("button.login-btn .btn-loader").style.opacity = 0;
+          document.querySelector("button.login-btn").disabled = false;
+        }
         document.querySelector("button.login-btn .btn-text").style.opacity = 0;
         document.querySelector("button.login-btn .btn-loader").style.opacity = 1;
+          document.querySelector("button.login-btn").disabled = true;
+        document.querySelector("#loginError").textContent = "";
+        document.querySelector("#loginError").style.opacity = 0;
+        let _username = username.value.trim();
+        let _password = password.value.trim();
+        users.login(_username, _password, function(success, reason) {
+          if (success) {
+            Notiflix.Notify.success("Welcome back " + users.data.username + "! Redirecting...");
+            location.href = "/";
+          } else {
+            resetButton();
+            if (reason == 0) {
+              document.querySelector("#loginError").textContent = "That Username or Password is incorrect.";
+            } else {
+              document.querySelector("#loginError").textContent = "Our server is currently down. Please try again later.";
+            }
+            document.querySelector("#loginError").style.opacity = 1;
+          }
+        });
       }
       document.querySelector("button.login-btn").addEventListener("click", event => (event.preventDefault(), login()));
     </script>
