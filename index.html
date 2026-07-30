@@ -9,6 +9,7 @@
   </head>
   <body>
     <audio id="menu-audio" src="https://cdn.jsdelivr.net/gh/Parking-Master/Parking-Master@latest/index/menu-audio.mp3" autoplay="" loop=""></audio>
+    <script src="/scripts/users.js"></script>
     <script src="/scripts/sweetalert.js"></script>
     <div class="loading-banner">
       <div class="spinner"></div>
@@ -16,12 +17,12 @@
     </div>
     <div class="nav-bar">
       <a href="login.html"><button class="button nav-button nav-button-login">Log in <img src="/images/menu/arrow-right.png" class="arrow-icon"></button></a>
-      <a href="signup.html"><button class="button nav-button nav-button-login" onclick="location.href = 'signup.html'">Sign up <img src="/images/menu/arrow-right.png" class="arrow-icon"></button></a>
+      <a href="signup.html"><button class="button nav-button nav-button-signup">Sign up <img src="/images/menu/arrow-right.png" class="arrow-icon"></button></a>
       <a href="javascript:openSettings()"><button class="button nav-button nav-button-settings"></button></a>
       <div class="account">
         <div class="profile-picture"></div>
-        <div class="username">GuestUser1234</div>
-        <div class="points">50 PTS</div>
+        <div class="username"></div>
+        <div class="points">0 PTS</div>
       </div>
     </div>
     <div class="header">

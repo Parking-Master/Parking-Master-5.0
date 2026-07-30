@@ -18,7 +18,7 @@
         </div>
         <form class="login-form" id="loginForm" novalidate>
           <div class="form-group">
-            <div class="input-wrapper">
+            <div class="input-wrapper username-wrapper">
               <input type="username" id="username" name="username" required>
               <label for="username">Username</label>
             </div>
@@ -36,7 +36,7 @@
               <input type="checkbox" id="remember" name="remember" checked>
               <span class="checkbox-label"><span class="checkmark"></span> Remember me</span>
             </label>
-            <a href="#" class="forgot-password">Forgot password?</a>
+            <a href="#" class="forgot-password" onclick="resetPassword()">Forgot password?</a>
           </div>
           <button type="submit" class="login-btn">
             <span class="btn-text">Log in</span>
@@ -49,12 +49,18 @@
       </div>
     </div>
     <script>
-      let verificationSuccess = new URLSearchParams(location.search).get("success");
+      if (users.loggedIn) location.replace("/");
+      let params = new URLSearchParams(location.search);
+      let verificationSuccess = params.get("success");
       if (verificationSuccess != null) {
-        if (verificationSuccess == "1") {
-          Notiflix.Notify.success("Success! Your account has been added. Log in to access it.");
-        } else {
+        if (verificationSuccess == "0") {
           Notiflix.Notify.failure("Signup failed. That link might be expired.");
+        } else if (verificationSuccess == "1") {
+          Notiflix.Notify.success("Success! Your account has been added. Log in to access it.");
+        } else if (verificationSuccess == "2") {
+          Notiflix.Notify.failure("Failed to reset your password. That link might be expired.");
+        } else if (verificationSuccess == "3") {
+          Notiflix.Notify.success("Your password has been successfully reset!");
         }
       }
       function updateInputs(input) {
@@ -86,15 +92,23 @@
         }
         document.querySelector("button.login-btn .btn-text").style.opacity = 0;
         document.querySelector("button.login-btn .btn-loader").style.opacity = 1;
-          document.querySelector("button.login-btn").disabled = true;
+        document.querySelector("button.login-btn").disabled = true;
         document.querySelector("#loginError").textContent = "";
         document.querySelector("#loginError").style.opacity = 0;
         let _username = username.value.trim();
         let _password = password.value.trim();
         users.login(_username, _password, function(success, reason) {
           if (success) {
-            Notiflix.Notify.success("Welcome back " + users.data.username + "! Redirecting...");
-            location.href = "/";
+            if (reason == 0) {
+              Notiflix.Notify.success("Welcome back " + _username + "! Redirecting...");
+            } else {
+              let redirect = new URLSearchParams(location.search).get("redirect");
+              if (redirect) {
+                location.href = redirect;
+              } else {
+                location.href = "/";
+              }
+            }
           } else {
             resetButton();
             if (reason == 0) {
@@ -106,7 +120,57 @@
           }
         });
       }
+      function resetPassword() {
+        document.querySelector(".password-wrapper").style.display = "none";
+        document.querySelector("label[for='username']").textContent = "Enter your Email Address";
+        document.querySelector("input#username").value = "";
+        document.querySelector(".login-header h2").textContent = "Reset your password";
+        document.querySelector(".login-header p").textContent = "Enter the Email Address you signed up with below.";
+        document.querySelector(".form-options").style.display = "none";
+        document.querySelector(".login-btn .btn-text").textContent = "Next";
+        document.querySelector(".signup-link a").textContent = "Go back";
+        document.querySelector(".signup-link a").onclick = e => (e.preventDefault(), location.reload());
+        document.querySelector("#loginError").style.display = "none";
+        updateInputs(username);
+        login = function() {
+          let _email = username.value.trim();
+          document.querySelector("button.login-btn .btn-text").style.opacity = 0;
+          document.querySelector("button.login-btn .btn-loader").style.opacity = 1;
+          document.querySelector("button.login-btn").disabled = true;
+          users.sendPasswordReset(_email, function() {
+            document.querySelector(".login-header .logo").src = "/images/menu/email.png";
+            document.querySelector(".login-header h2").textContent = "Check your email";
+            document.querySelector(".login-header p").textContent = "Click the link in the email to reset your password.";
+            document.querySelector("form").style.display = "none";
+            document.querySelector(".signup-link a").style.display = "none";
+            document.querySelector(".login-container").style = "height: 266px; margin-top: -133px";
+          });
+        };
+      }
       document.querySelector("button.login-btn").addEventListener("click", event => (event.preventDefault(), login()));
+      let passwordReset = params.get("p");
+      if (passwordReset) {
+        let email = params.get("e");
+        let verificationKey = params.get("v");
+        document.querySelector(".username-wrapper").style.display = "none";
+        document.querySelector("label[for='password']").textContent = "Enter your New Password";
+        document.querySelector(".login-header h2").textContent = "Reset your password";
+        document.querySelector(".login-header p").textContent = "Enter your new password below (8-60 characters).";
+        document.querySelector(".form-options").style.display = "none";
+        document.querySelector(".login-btn .btn-text").textContent = "Finish";
+        document.querySelector(".signup-link").style.display = "none";
+        login = function() {
+          let newPassword = password.value.trim();
+          if (email && verificationKey && newPassword) users.resetPassword(email, verificationKey, newPassword, function(success) {
+            if (success) {
+              location.replace("/login.html?success=3");
+            } else {
+              location.replace("/login.html?success=2");
+            }
+          });
+        };
+        // document.querySelector("#loginError").style.display = "none";
+      }
     </script>
   </body>
 </html>

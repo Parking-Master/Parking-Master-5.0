@@ -21,6 +21,17 @@
           box-shadow: 0 0 0 6px gold;
         }
       }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        50% {
+          transform: rotate(180deg);
+        }
+        100% { 
+          transform: rotate(360deg);
+        }
+      }
       html, body {
         margin: 0;
         width: 100%;
@@ -337,9 +348,24 @@
       img.prize {
         width: 200px;
       }
+      .spinner {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        border: 10px solid #eee;
+        border-radius: 100%;
+        border-top: 10px solid transparent;
+        left: 50%;
+        top: 50%;
+        margin-left: -50px;
+        margin-top: -50px;
+        box-sizing: border-box;
+        animation: spin 2s linear infinite;
+      }
     </style>
   </head>
   <body>
+    <script src="/scripts/users.js"></script>
     <script src="/scripts/three.js"></script>
     <script src="/scripts/GLTFLoader.js"></script>
     <script src="/scripts/DecalGeometry.js"></script>
@@ -539,7 +565,7 @@
         document.querySelector(".progress-bar").style.width = (progress * 100) + "%";
       };
 
-      let chosenVehicle = "Honda_Civic";
+      let chosenVehicle = users.loggedIn ? users.data.currentCar : "Honda_Civic";
       let keyStates = {};
       let vehicle = null;
       let propCars = [];
@@ -1250,25 +1276,27 @@
                 }
               }
             } else if (vehicle.currentView == 1) {
-              camera.position.copy(vehicle.mesh.position);
-              if (GamepadControls.lookingDirection) {
-                camera.rotation.set(vehicle.mesh.rotation.x, vehicle.mesh.rotation.y + (GamepadControls.lookingDirection == "left" ? -Math.PI / 2 : Math.PI / 2), vehicle.mesh.rotation.z);
-              } else {
-                const rotateAmount = utils.data.initialViewSwitch ? 1 : Math.min(deltaTime * 5, 0.4);
-                const targetQuaternion = quaternions[1].copy(vehicle.mesh.quaternion);
-                quaternions[2].setFromAxisAngle(vectors[14], view[3]);
-                targetQuaternion.multiply(quaternions[2]);
-                quaternions[2].setFromAxisAngle(vectors[15], view[4]);
-                targetQuaternion.multiply(quaternions[2]);
-                quaternions[2].setFromAxisAngle(vectors[16], view[5]);
-                targetQuaternion.multiply(quaternions[2]);
-                camera.quaternion.slerp(targetQuaternion, rotateAmount);
+              if (utils.data.allowedToUseControls) {
+                camera.position.copy(vehicle.mesh.position);
+                if (GamepadControls.lookingDirection) {
+                  camera.rotation.set(vehicle.mesh.rotation.x, vehicle.mesh.rotation.y + (GamepadControls.lookingDirection == "left" ? -Math.PI / 2 : Math.PI / 2), vehicle.mesh.rotation.z);
+                } else {
+                  const rotateAmount = utils.data.initialViewSwitch ? 1 : Math.min(deltaTime * 5, 0.4);
+                  const targetQuaternion = quaternions[1].copy(vehicle.mesh.quaternion);
+                  quaternions[2].setFromAxisAngle(vectors[14], view[3]);
+                  targetQuaternion.multiply(quaternions[2]);
+                  quaternions[2].setFromAxisAngle(vectors[15], view[4]);
+                  targetQuaternion.multiply(quaternions[2]);
+                  quaternions[2].setFromAxisAngle(vectors[16], view[5]);
+                  targetQuaternion.multiply(quaternions[2]);
+                  camera.quaternion.slerp(targetQuaternion, rotateAmount);
+                }
+                camera.translateX(view[0]);
+                camera.translateY(view[1]);
+                camera.translateZ(view[2]);
+                PointerControls.isLocked = false;
+                TouchControls.isLocked = false;
               }
-              camera.translateX(view[0]);
-              camera.translateY(view[1]);
-              camera.translateZ(view[2]);
-              PointerControls.isLocked = false;
-              TouchControls.isLocked = false;
             } else {
               camera.position.copy(vehicle.mesh.position);
               camera.rotation.set(0, vehicle.mesh.rotation.y, 0);
@@ -1802,14 +1830,14 @@
                   content.innerHTML = `
                   <div class="prize-card" data-prize="car.Toyota_RAV4" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Toyota_RAV4.png); background-size: 200%;"></div>
                   <div class="prize-card" data-prize="pts.1000" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/1000pts.png)"></div>
-                  <div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>
+                  ${users.loggedIn ? `<div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>` : ""}
                   `;
                 } else {
                   content.innerHTML = `
-                  <div class="prize-card" data-prize="car.Toyota_RAV4" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Toyota_RAV4.png); background-size: 200%;"></div>
+                  <div class="prize-card" data-prize="car.Ford_F150" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/cars/Ford_F150.png); background-size: 200%;"></div>
                   <div class="prize-card" data-prize="pts.1000" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/1000pts.png)"></div>
-                  <br>
-                  <div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>
+                  ${users.loggedIn ? `<br>
+                  <div class="prize-card" data-prize="license" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/license.png)"></div>` : ""}
                   <div class="prize-card" data-prize="mystery" onclick='utils.data.chosenPrize = this.dataset.prize, swal.close()' style="background-image: url(/images/mystery.png)"></div>
                   `;
                 }
@@ -1849,12 +1877,16 @@
                         <img src="/images/${points}pts.png" class="prize">
                         `;
                       } else if (prizeType == "license") {
+                        content.innerHTML = `
+                        <p>Parking Master 5.0 License</p>
+                        <div class="spinner"></div>
+                        <img class="prize" style="display: none">
+                        <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
+                        `;
                         utils.game.generateLicense(function(src) {
-                          content.innerHTML = `
-                          <p>Parking Master 5.0 License</p>
-                          <img src="${src}" class="prize">
-                          <p>This license displays that you made it through every level of Parking Master 5.0. It can be viewed at any time from your profile.</p>
-                          `;
+                          content.querySelector("img").src = src;
+                          content.querySelector("img").style.display = "";
+                          content.querySelector(".spinner").style.display = "none";
                         });
                       } else if (prizeType == "mystery") {
                         button = false;
@@ -1867,7 +1899,7 @@
                           "pts.1000": `<img src="/images/1000pts.png" class="prize">`,
                           "pts.2000": `<img src="/images/2000pts.png" class="prize">`
                         };
-                        if (/*user.loggedIn*/true) {
+                        if (users.loggedIn) {
                           utils.game.generateLicense(function(src) {
                             displayItems["license"] = `<img src="${src}" class="prize">`;
                           });
@@ -1894,6 +1926,18 @@
                           }
                         });
                       }
+                      if (utils.data.chosenPrize.split(".")[0] == "car") {
+                        if (users.loggedIn) {
+                          if (users.data.cars.indexOf(utils.data.chosenPrize.split(".")[1]) > -1) {
+                            utils.data.chosenPrize = "pts.500";
+                          }
+                        } else {
+                          utils.data.chosenPrize = "pts.500";
+                        }
+                      }
+                      if (!users.loggedIn && utils.data.chosenPrize.split(".")[0] == "license") {
+                        utils.data.chosenPrize = "pts.500";
+                      }
                       swal({
                         title: "You won:",
                         content: content,
@@ -1903,9 +1947,23 @@
                         closeOnEnterKey: false,
                         closeOnSpaceKey: false
                       }).then(function() {
-                        // Prize will be in utils.data.chosenPrize
-                        let content = document.createElement("div");
-                        content.innerHTML = `
+                        let prizeType = utils.data.chosenPrize.split(".")[0];
+                        let prizeValue = utils.data.chosenPrize.split(".")[1];
+                        if (prizeType == "car") {
+                          let newCars = users.data.cars;
+                          newCars.push(prizeValue);
+                          users.set("cars", newCars);
+                        } else if (prizeType == "pts") {
+                          if (users.loggedIn) {
+                            users.set("points", users.data.points + parseFloat(prizeValue));
+                          } else {
+                            localStorage.setItem("points", parseFloat(localStorage["points"]) + parseFloat(prizeValue));
+                          }
+                        } else if (prizeType == "license") {
+                          users.set("license", content.querySelector("img").src);
+                        }
+                        let content1 = document.createElement("div");
+                        content1.innerHTML = `
                         Thanks for playing Parking Master 5.0!
                         <br>
                         <br>
@@ -1913,7 +1971,7 @@
                         `;
                         swal({
                           icon: "/favicon.png",
-                          content: content,
+                          content: content1,
                           button: "Main Menu",
                           closeOnClickOutside: false,
                           closeOnEsc: false,
@@ -2027,13 +2085,35 @@
               text = "You parked in a bluespot! You earned an extra point.";
               points = 2;
             } else if (parkingSpot.type == "specialSpot") {
-              const availableCars = ["Mini_Cooper", "Ford_Victoria"];
-              const chosenCar = availableCars[Math.floor(Math.random() * availableCars.length)];
-              icon = "/images/cars/" + chosenCar + ".png";
-              text = "You unlocked a new car! You can get in it after this game ends.\n\n" + utils.vehicle.vehicleNames[chosenCar];
-              // Add logic here so that players get points if they already own all cars
+              if (users.loggedIn) {
+                let availableCars = ["Mini_Cooper", "Ford_Victoria"];
+                let chosenCar = availableCars[0];
+                if (users.data.cars.indexOf(chosenCar) > -1) {
+                  chosenCar = availableCars[1];
+                  if (users.data.cars.indexOf(chosenCar) > -1) {
+                    icon = "/images/50pts.png";
+                    text = "You earned 50 extra points!";
+                    points = 50;
+                    return;
+                  }
+                }
+                icon = "/images/cars/" + chosenCar + ".png";
+                text = "You unlocked a new car! You can get in it after this game ends.\n\n" + utils.vehicle.vehicleNames[chosenCar];
+                points = 0;
+                let newCars = users.data.cars;
+                newCars.push(chosenCar);
+                users.set("cars", newCars);
+              } else {
+                icon = "/images/50pts.png";
+                text = "You earned 50 extra points!\n\nTo earn a free car, Log in or Sign up next time.";
+                points = 50;
+              }
             } else if (parkingSpot.type == "handicapSpot") {
-              localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) - 10, 0));
+              if (users.loggedIn) {
+                users.set("points", Math.max(parseInt(users.data.points) - 10, 0));
+              } else {
+                localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) - 10, 0));
+              }
               utils.data.allowedToUseControls = true;
               return utils.game.gameOver("handicap");
             } else if (parkingSpot.type == "mysterySpot") {
@@ -2069,7 +2149,11 @@
               closeOnEsc: false,
               closeOnEnterKey: false
             }).then(function() {
-              localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) + points, 0));
+              if (users.loggedIn) {
+                users.set("points", Math.max(parseInt(users.data.points) + points, 0));
+              } else {
+                localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) + points, 0));
+              }
               utils.game.loadLevel(utils.game.currentLevel + 1);
               if (document.querySelector(".swal-icon img")) document.querySelector(".swal-icon img").style = "";
             });
@@ -2078,8 +2162,10 @@
             sounds.success();
             sounds.stopTimeLow();
             document.querySelector(".loading").style.backgroundImage = "url(/images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
-            utils.data.moneyText = "$" + (points * 100);
-            utils.scheduleObject({}, "moneyText", 2000);
+            if (points > 0) {
+              utils.data.moneyText = "$" + (points * 100);
+              utils.scheduleObject({}, "moneyText", 2000);
+            }
             return true;
           },
           getParkingSpot: function() {
@@ -2159,8 +2245,6 @@
             }
           },
           generateLicense: function(callback = () => {}) {
-            let profilePictureURL = "/images/menu/profile-picture.png";
-            let username = "ExampleUser123";
             const canvas = document.createElement("canvas");
             canvas.width = 500;
             canvas.height = 500;
@@ -2170,12 +2254,13 @@
             template.onload = function() {
               ctx.drawImage(template, 0, 0, 500, 500);
               const profilePicture = new Image();
-              profilePicture.src = profilePictureURL;
+              profilePicture.crossOrigin = "anonymous";
+              profilePicture.src = users.data.profilePicture;
               profilePicture.onload = function() {
                 ctx.drawImage(profilePicture, 50, 180, 170, 170);
                 ctx.fillStyle = "#000000";
                 ctx.font = "12px Brittany";
-                ctx.fillText(username, 290, 180);
+                ctx.fillText(users.data.username, 290, 180);
                 ctx.font = "12px Arial";
                 ctx.fillText(new Date().toLocaleDateString(), 327, 218);
                 callback(canvas.toDataURL());
@@ -2420,7 +2505,7 @@
             ctx.textAlign = "left";
             ctx.fillStyle = "#dddddd";
             if (!utils.data.isBonusLevel) ctx.fillText("Level " + utils.data.realLevel, 20, window.innerHeight - 202);
-            ctx.fillText(localStorage["points"] + " PTS", 20, window.innerHeight - 180);
+            ctx.fillText((users.loggedIn ? users.data.points : localStorage["points"]) + " PTS", 20, window.innerHeight - 180);
             if (utils.data.moneyText) ctx.fillStyle = "#00ff00", ctx.fillText("+ " + utils.data.moneyText, 20, 50);
             ctx.restore();
           }

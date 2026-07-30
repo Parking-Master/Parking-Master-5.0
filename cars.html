@@ -94,6 +94,15 @@
         filter: none;
         border-color: #34a0ff;
       }
+      .car-selector .car-card.car-card-locked::after {
+        content: "";
+        width: 48px;
+        height: 48px;
+        background-image: url(/images/menu/lock.png);
+        background-size: 100%;
+        background-color: red;
+        position: absolute;
+      }
       .car-information {
         position: absolute;
         left: 240px;
@@ -188,9 +197,24 @@
       .tippy-arrow {
         background: #ddd;
       }
+      .swal-modal {
+        border-radius: 0;
+        font-family: "Roboto", arial;
+        font-weight: 500;
+      }
+      .swal-button {
+        border-radius: 0;
+        background: #333 !important;
+        box-shadow: none !important;
+      }
+      a {
+        color: #9ab8ff !important;
+      }
     </style>
   </head>
   <body>
+    <script src="/scripts/users.js"></script>
+    <script src="/scripts/sweetalert.js"></script>
     <div class="tabs"></div>
     <div class="car-preview"></div>
     <div class="car-selector"></div>
@@ -244,8 +268,17 @@
       function formatNumber(number) {
         return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
       }
-      let currentCar = Object.keys(Object.values(cars)[0])[0];
-      function selectCar(car) {
+      function selectCar(car, checkLogin = true) {
+        if (checkLogin && !users.loggedIn) {
+          let content = document.createElement("div");
+          content.innerHTML = `
+          <p><a href='login.html?redirect=cars.html'>Log in</a> or <a href='signup.html'>Sign up</a> to see and buy other cars.</p>
+          `;
+          return swal({
+            content: content,
+            button: "Close"
+          });
+        }
         const card = document.querySelector(".car-card[data-car='" + car + "']");
         if (document.querySelector(".car-card-focused")) document.querySelector(".car-card-focused").classList.remove("car-card-focused");
         card.classList.add("car-card-focused");
@@ -263,8 +296,15 @@
         document.querySelector(".car-information .model").innerHTML = '<span id="year">' + carInfo.model.split(" ")[0] + '</span> ' + carInfo.model.split(" ").splice(1).join(" ");
         document.querySelector(".car-information .logo").src = "/images/car-logos/" + card.dataset.brand.toLowerCase() + ".png";
       }
-      selectCar(currentCar);
       document.querySelector(".balance #value").textContent = "$" + formatNumber(parseInt(localStorage["points"]) * 100);
+      if (users.loggedIn) {
+        selectCar(users.data.currentCar);
+      } else {
+        document.querySelectorAll(".car-card").forEach(element => {
+          if (element.dataset.car != "Honda_Civic") element.classList.add("car-card-locked");
+        });
+        selectCar("Honda_Civic", false);
+      }
     </script>
   </body>
 </html>
