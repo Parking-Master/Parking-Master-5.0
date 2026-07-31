@@ -467,3 +467,6 @@ a[data-disabled] {
   border-radius: 100%;
   animation: spin 1s linear infinite;
 }
+.wpcc-poweredby {
+  display: none;
+}

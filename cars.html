@@ -206,9 +206,74 @@
         border-radius: 0;
         background: #333 !important;
         box-shadow: none !important;
+        color: #fff !important;
       }
       a {
         color: #9ab8ff !important;
+      }
+      .car-context-menu {
+        position: absolute;
+        width: 150px;
+        left: 240px;
+        bottom: 215px;
+        z-index: 10;
+      }
+      .car-context-menu button {
+        position: relative;
+        width: 100px;
+        margin-bottom: 10px;
+        background: #ccc;
+        border: 4px solid #fff;
+        box-shadow: 0 4px 0 #ddd;
+        cursor: pointer;
+        color: #fff;
+        font-size: 16px;
+        padding: 2px 10px;
+      }
+      .car-context-menu button:hover {
+        background: #aaa;
+      }
+      .car-context-menu button:active {
+        background: #999;
+      }
+      .car-specs {
+        position: relative;
+        width: 75%;
+        height: 140px;
+        background: #333;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .car-spec-bar {
+        position: relative;
+        width: 60px;
+        margin: 10px;
+        margin-top: auto;
+        margin-bottom: 0;
+        font-size: 12px;
+        background: #eee;
+      }
+      .car-spec-bar::after {
+        content: "";
+        position: absolute;
+        bottom: -20px;
+        left: 0;
+        width: 60px;
+        text-align: center;
+      }
+      .car-spec-bar#weight::after {
+        content: "Weight";
+      }
+      .car-spec-bar#braking::after {
+        content: "Braking";
+      }
+      .car-spec-bar#acceleration::after {
+        content: "Acceleration";
+      }
+      .car-spec-bar#maneuvering::after {
+        content: "Maneuvering";
       }
     </style>
   </head>
@@ -218,6 +283,11 @@
     <div class="tabs"></div>
     <div class="car-preview"></div>
     <div class="car-selector"></div>
+    <div class="car-context-menu">
+      <button id="buy-car">Buy Car</button>
+      <button id="sell-car">Sell Car</button>
+      <button id="about-car">Car Specs</button>
+    </div>
     <div class="car-information">
       <div class="price">$35,000</div>
       <div class="model"><span id="year">2018</span> Civic Sport Touring</div>
@@ -231,29 +301,64 @@
         "Ford": {
           "Ford_Victoria": {
             model: "2010 Crown Victoria",
-            price: 5000
+            price: 5000,
+            about: "Even though acceleration isn't the best, the Ford Crown Victoria models excel at handling rough terrain and have great speed, which is why they are commonly used as Police Interceptors.",
+            specs: {
+              weight: 3909,
+              braking: 7,
+              acceleration: 4,
+              maneuvering: 5
+            }
           },
           "Ford_F150": {
             model: "2017 F-150 Raptor",
-            price: 22000
+            price: 22000,
+            about: "The Ford F-150 is the classic American Pickup-Truck. The 2017 F-150 Raptor is packing a lot of horsepower, which is ideal for driving offroad. It also comes with a backup camera, unlike older models.",
+            specs: {
+              weight: 6349,
+              braking: 3,
+              acceleration: 5,
+              maneuvering: 4
+            }
           }
         },
         "Honda": {
           "Honda_Civic": {
             model: "2018 Civic Sport Touring",
-            price: 20000
+            price: 20000,
+            about: "This 2018 Honda Civic Sport Touring is a Hatchback model, which is more compact, and makes it very easy to park. It is also one of the fastest production FWD cars ever made.",
+            specs: {
+              weight: 3122,
+              braking: 9,
+              acceleration: 7,
+              maneuvering: 7
+            }
           }
         },
         "Mini": {
           "Mini_Cooper": {
             model: "2014 Mini Cooper S",
-            price: 15000
+            price: 15000,
+            about: "The 2014 Mini Cooper makes luxury feel affordable. This model is very lightweight and compact which makes it easy to park, and the low acceleration makes parking more precise.",
+            specs: {
+              weight: 2756,
+              braking: 8,
+              acceleration: 5,
+              maneuvering: 8
+            }
           }
         },
         "Toyota": {
           "Toyota_RAV4": {
             model: "2023 RAV4",
-            price: 35000
+            price: 35000,
+            about: "The Toyota RAV4 is one of the most common production cars ever made. The 2023 version comes in Hybrid variants, which are even more common due to their fuel efficiency. This model has decent acceleration and braking, but is more known for its spaciousness and fuel efficiency.",
+            specs: {
+              weight: 3748,
+              braking: 6,
+              acceleration: 5,
+              maneuvering: 6
+            }
           }
         }
       };
@@ -267,6 +372,91 @@
       }
       function formatNumber(number) {
         return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
+      }
+      function buyCar(brand, car) {
+        let carData = cars[brand][car];
+        let priceInPts = carData.price / 100;
+        if (users.data.points >= priceInPts) {
+          swal({
+            text: "Do you want to redeem the " + carData.model + " for " + priceInPts + " points ($" + formatNumber(carData.price) + ")?",
+            buttons: ["No", "Yes"],
+            closeOnEsc: false,
+            closeOnEnterKey: false,
+            closeOnSpaceKey: false,
+            closeOnClickOutside: false
+          }).then(result => {
+            if (result) {
+              users.set("points", Math.max(users.data.points - priceInPts, 0));
+              let newCars = users.data.cars;
+              newCars.push(car);
+              users.set("cars", newCars);
+              selectCar(car);
+              updateBalance();
+              swal({
+                text: "Purchase successful. Enjoy your new car!",
+                button: "Close"
+              });
+            }
+          });
+        } else {
+          swal({
+            text: "You can't afford this car. Save up at least " + (priceInPts - users.data.points) + " more points, then try again.",
+            button: "Close",
+            closeOnEsc: false,
+            closeOnEnterKey: false,
+            closeOnSpaceKey: false,
+            closeOnClickOutside: false
+          });
+        }
+      }
+      function getInCar(brand, car) {
+        users.set("currentCar", car);
+        selectCar(car);
+      }
+      function sellCar(brand, car) {
+        if (users.data.cars.length == 1) return swal({
+          text: "You cannot sell your only car.",
+          button: "Close"
+        });
+        let carData = cars[brand][car];
+        let priceInPts = carData.price / 100;
+        swal({
+          text: "When you sell your " + carData.model + ", you will only get half of the points back that you originally payed for it (" + (priceInPts / 2) + " pts, or $" + formatNumber(carData.price / 2) + "). Do you want to continue?",
+          buttons: ["No", "Yes"],
+          closeOnEsc: false,
+          closeOnEnterKey: false,
+          closeOnSpaceKey: false,
+          closeOnClickOutside: false
+        }).then(result => {
+          if (result) {
+            users.set("points", Math.round(users.data.points + (priceInPts / 2)));
+            let newCars = users.data.cars;
+            newCars.splice(newCars.indexOf(car), 1);
+            users.set("cars", newCars);
+            selectCar(car);
+            updateBalance();
+          }
+        });
+      }
+      function aboutCar(brand, car) {
+        let carData = cars[brand][car];
+        let weight = Math.round(Math.max(Math.min((6500 - carData.specs.weight) / 65, 100), 0));
+        let braking = carData.specs.braking;
+        let acceleration = carData.specs.acceleration;
+        let maneuvering = carData.specs.maneuvering;
+        let specs = document.createElement("div");
+        specs.className = "car-specs";
+        specs.innerHTML = `
+        <div class="car-spec-bar" id="weight" style="height: ${Math.max(weight, 15)}%; background: ${weight < 40 ? "#ff0000" : weight < 75 ? "#eee" : "#32CD32"}">${carData.specs.weight} lbs</div>
+        <div class="car-spec-bar" id="braking" style="height: ${braking * 10}%; background: ${braking < 4 ? "#ff0000" : braking < 7.5 ? "#eee" : "#32CD32"}">${braking} / 10</div>
+        <div class="car-spec-bar" id="acceleration" style="height: ${acceleration * 10}%; background: ${acceleration < 4 ? "#ff0000" : acceleration < 7.5 ? "#eee" : "#32CD32"}">${acceleration} / 10</div>
+        <div class="car-spec-bar" id="maneuvering" style="height: ${maneuvering * 10}%; background: ${maneuvering < 4 ? "#ff0000" : maneuvering < 7.5 ? "#eee" : "#32CD32"}">${maneuvering} / 10</div>
+        `;
+        swal({
+          text: carData.about,
+          button: "Close",
+          content: specs
+        });
       }
       function selectCar(car, checkLogin = true) {
         if (checkLogin && !users.loggedIn) {
@@ -292,11 +482,35 @@
         }
         document.querySelector(".car-preview").style.backgroundImage = "url(/images/cars/" + car + ".png)";
         const carInfo = cars[card.dataset.brand][car];
-        document.querySelector(".car-information .price").textContent = "$" + formatNumber(carInfo.price);
+        if (users.loggedIn) {
+          document.querySelector(".car-context-menu #buy-car").style.display = "block";
+          if (users.data.cars.indexOf(car) > -1) {
+            if (car == users.data.currentCar) {
+              document.querySelector(".car-information .price").textContent = "SELECTED";
+              document.querySelector(".car-context-menu #buy-car").style.display = "none";
+            } else {
+              document.querySelector(".car-information .price").textContent = "OWNED";
+            }
+            document.querySelector(".car-context-menu #buy-car").textContent = "Get in Car";
+            document.querySelector(".car-context-menu #buy-car").onclick = () => getInCar(card.dataset.brand, car);
+            document.querySelector(".car-context-menu #sell-car").style.display = "block";
+            document.querySelector(".car-context-menu #sell-car").onclick = () => sellCar(card.dataset.brand, car);
+          } else {
+            document.querySelector(".car-information .price").textContent = "$" + formatNumber(carInfo.price);
+            document.querySelector(".car-context-menu #buy-car").textContent = "Buy Car";
+            document.querySelector(".car-context-menu #buy-car").onclick = () => buyCar(card.dataset.brand, car);
+            document.querySelector(".car-context-menu #sell-car").style.display = "none";
+          }
+          document.querySelector(".car-context-menu #about-car").onclick = () => aboutCar(card.dataset.brand, car);
+        }
         document.querySelector(".car-information .model").innerHTML = '<span id="year">' + carInfo.model.split(" ")[0] + '</span> ' + carInfo.model.split(" ").splice(1).join(" ");
         document.querySelector(".car-information .logo").src = "/images/car-logos/" + card.dataset.brand.toLowerCase() + ".png";
       }
-      document.querySelector(".balance #value").textContent = "$" + formatNumber(parseInt(localStorage["points"]) * 100);
+      function updateBalance() {
+        let balance = users.loggedIn ? users.data.points : localStorage["points"];
+        document.querySelector(".balance #value").textContent = "$" + formatNumber(parseInt(balance) * 100);
+      }
+      updateBalance();
       if (users.loggedIn) {
         selectCar(users.data.currentCar);
       } else {

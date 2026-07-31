@@ -2021,11 +2021,23 @@
                 closeOnSpaceKey: false,
               }).then(function(e) {
                 if (e) {
+                  if (users.loggedIn) {
+                    users.set("points", Math.max(parseInt(users.data.points) - 10, 0));
+                  } else {
+                    localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) - 10, 0));
+                  }
                   utils.game.resetLevel();
                 } else {
                   location.replace("/");
                 }
               });
+              let points = 0;
+              if (users.loggedIn) {
+                points = users.data.points;
+              } else {
+                points = localStorage["points"];
+              }
+              if (points < 10) document.querySelector(".swal-button--confirm").disabled = "disabled";
             }
           },
           park: function() {
@@ -2085,17 +2097,12 @@
               text = "You parked in a bluespot! You earned an extra point.";
               points = 2;
             } else if (parkingSpot.type == "specialSpot") {
-              if (users.loggedIn) {
-                let availableCars = ["Mini_Cooper", "Ford_Victoria"];
+              let availableCars = ["Mini_Cooper", "Ford_Victoria"];
+              let hasBothCars = users.data.cars.indexOf(availableCars[0]) > -1 && users.data.cars.indexOf(availableCars[1]) > -1;
+              if (users.loggedIn && !hasBothCars) {
                 let chosenCar = availableCars[0];
                 if (users.data.cars.indexOf(chosenCar) > -1) {
                   chosenCar = availableCars[1];
-                  if (users.data.cars.indexOf(chosenCar) > -1) {
-                    icon = "/images/50pts.png";
-                    text = "You earned 50 extra points!";
-                    points = 50;
-                    return;
-                  }
                 }
                 icon = "/images/cars/" + chosenCar + ".png";
                 text = "You unlocked a new car! You can get in it after this game ends.\n\n" + utils.vehicle.vehicleNames[chosenCar];
@@ -2105,7 +2112,11 @@
                 users.set("cars", newCars);
               } else {
                 icon = "/images/50pts.png";
-                text = "You earned 50 extra points!\n\nTo earn a free car, Log in or Sign up next time.";
+                if (hasBothCars) {
+                  text = "You earned 50 extra points!";
+                } else {
+                  text = "You earned 50 extra points!\n\nTo earn a free car, Log in or Sign up next time.";
+                }
                 points = 50;
               }
             } else if (parkingSpot.type == "handicapSpot") {
@@ -2158,7 +2169,7 @@
               if (document.querySelector(".swal-icon img")) document.querySelector(".swal-icon img").style = "";
             });
             if (title) document.querySelector(".swal-title").innerHTML = '<span style="color:#00aaff">' + score + '</span>/10';
-            if (parkingSpot.type == "specialSpot") document.querySelector(".swal-icon img").style = "border-radius: 10px; width: 120px; border-bottom: 5px solid gold";
+            if (parkingSpot.type == "specialSpot" && points == 0) document.querySelector(".swal-icon img").style = "border-radius: 10px; width: 120px; border-bottom: 5px solid gold";
             sounds.success();
             sounds.stopTimeLow();
             document.querySelector(".loading").style.backgroundImage = "url(/images/loading-screens/" + Math.floor(Math.random() * 4) + ".png)";
