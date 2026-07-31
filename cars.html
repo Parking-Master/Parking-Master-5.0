@@ -514,6 +514,7 @@
       if (users.loggedIn) {
         selectCar(users.data.currentCar);
       } else {
+        document.querySelector(".car-context-menu").style.display = "none";
         document.querySelectorAll(".car-card").forEach(element => {
           if (element.dataset.car != "Honda_Civic") element.classList.add("car-card-locked");
         });
