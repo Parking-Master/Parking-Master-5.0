@@ -30,9 +30,8 @@ You can play free at:
 This game was just released. If you experience any bugs, [open an Issue](https://github.com/Parking-Master/Parking-Master-5.0/issues/new) in the "Issues" tab!
 
 ### How to play
-1. Start the game
 2. Look for colored/dashed parking spots
-3. Park in any of your choice
+3. Use the arrow keys and park in any of your choice
 4. Click "Enter" to park.
 
 ### Controls
