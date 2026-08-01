@@ -2021,11 +2021,11 @@
                 closeOnSpaceKey: false,
               }).then(function(e) {
                 if (e) {
-                  // if (users.loggedIn) {
-                  //   users.set("points", Math.max(parseInt(users.data.points) - 10, 0));
-                  // } else {
-                  //   localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) - 10, 0));
-                  // }
+                  if (users.loggedIn) {
+                    users.set("points", Math.max(parseInt(users.data.points) - 10, 0));
+                  } else {
+                    localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) - 10, 0));
+                  }
                   utils.game.resetLevel();
                 } else {
                   location.replace("/");
@@ -2037,7 +2037,7 @@
               } else {
                 points = localStorage["points"];
               }
-              // if (points < 10) document.querySelector(".swal-button--confirm").disabled = "disabled";
+              if (points < 10) document.querySelector(".swal-button--confirm").disabled = "disabled";
             }
           },
           park: function() {
