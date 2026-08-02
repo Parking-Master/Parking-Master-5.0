@@ -68,7 +68,7 @@ Version 4.0<br>
 Version 3.0<br>
 <img style="width:300px" src="https://github.com/user-attachments/assets/a194d5f9-21e0-4927-8f40-19f57834a4fc"><br>
 Version 2.0<br>
-<img style="width:300px" src="https://github.com/user-attachments/assets/410628a9-8958-405a-8260-76cfa39c83c0"><br>
+<img style="width:300px" src="https://cdn.jsdelivr.net/gh/Parking-Master/Parking-Master-2.0@latest/preview.png"><br>
 Version 1.0<br>
 <img style="width:300px" src="https://github.com/user-attachments/assets/46a36734-9068-457d-bf3d-c0c3080e3bb5">
 
