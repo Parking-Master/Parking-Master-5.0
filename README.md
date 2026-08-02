@@ -4,7 +4,7 @@ Parking Master 5.0 is a fun browser game based on parking a car.
 It has highly realistic graphics, the best performance, and can run on almost any device/browser.
 
 <kbd>
-<img width="1920" height="932" style="width: 500px" src="https://github.com/user-attachments/assets/3b830101-8ef4-40c6-8d04-d4becdc0fde9" />
+<img width="1920" height="932" src="https://github.com/user-attachments/assets/3b830101-8ef4-40c6-8d04-d4becdc0fde9" />
 </kbd>
 
 
@@ -36,9 +36,9 @@ This game was just released. If you experience any bugs, [open an Issue](https:/
 
 ### Controls
 Keyboard Controls:
-> <kbd>▲</kbd> Gas Pedal<br>
-> <kbd>⏴</kbd> Steer left<br>
-> <kbd>⏵</kbd> Steer right<br>
+> <kbd>↑</kbd> Gas Pedal<br>
+> <kbd>←</kbd> Steer left<br>
+> <kbd>→</kbd> Steer right<br>
 > <kbd>Enter</kbd> Park<br>
 > <kbd>P</kbd> Shift into park (shortcut)<br>
 > <kbd>R</kbd> Shift into reverse (shortcut)<br>
@@ -50,14 +50,14 @@ Keyboard Controls:
 
 Gamepad Controls:
 > <kbd>RT</kbd> Gas Pedal<br>
-> <kbd>🠈L</kbd> Steer left<br>
-> <kbd>L🠊</kbd> Steer right<br>
+> <kbd>←L</kbd> Steer left<br>
+> <kbd>L→</kbd> Steer right<br>
 > <kbd>A</kbd> Park<br>
-> <kbd>DPad🠉</kbd> Shift up<br>
-> <kbd>DPad🠋</kbd> Shift down<br>
+> <kbd>DPad↑</kbd> Shift up<br>
+> <kbd>DPad↓</kbd> Shift down<br>
 > <kbd>LT</kbd> Brake Pedal<br>
-> <kbd>🠈DPad</kbd> Toggle left blinker<br>
-> <kbd>DPad🠊</kbd> Toggle right blinker<br>
+> <kbd>←DPad</kbd> Toggle left blinker<br>
+> <kbd>DPad→</kbd> Toggle right blinker<br>
 > <kbd>RB</kbd> Toggle view<br>
 
 ## History
