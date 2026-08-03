@@ -42,7 +42,8 @@ if (users.loggedIn) {
     "Toyota_RAV4": "2023 Toyota RAV4",
     "Mini_Cooper": "2014 Mini Cooper S",
     "Ford_Victoria": "2010 Ford Crown Victoria",
-    "Ford_F150": "2017 Ford F-150 Raptor"
+    "Ford_F150": "2017 Ford F-150 Raptor",
+    "Chevy_Camaro": "2017 Chevrolet Camaro"
   };
   document.querySelector(".current-car-image").src = "/images/cars/" + users.data.currentCar + ".png";
   document.querySelector(".current-car-text").innerHTML = `<span style="font-weight:600">${vehicleNames[users.data.currentCar].split(" ")[0]}</span> ${vehicleNames[users.data.currentCar].split(" ").splice(1).join(" ").toUpperCase()}</p>`;

@@ -565,6 +565,54 @@
               [0, 1, 6, -0.2, 0, 0]
             ],
             currentView: 0
+          },
+          "Chevy_Camaro": {
+            physics: {
+              maxSpeedMPH: 198,
+              drivetrain: "fwd",
+              engineForce: 1600,
+              wheelTurnRatio: 9,
+              frontArea: 2,
+              rearArea: 2.4,
+              weight: 1761,
+              gearRatios: [2.66, 1.78, 1.3, 1, .74, .5],
+              finalDriveRatio: 3.73,
+              upshiftRPM: 5500,
+              downshiftRPM: 2000,
+              wheelPhysics: {
+                weight: 10,
+                radius: 0.36,
+                suspensionStiffness: 36,
+                suspensionRestLength: 0.26,
+                frictionSlip: 2,
+                dampingRelaxation: 6,
+                dampingCompression: 4.5,
+                maxSuspensionForce: 120000,
+                maxSuspensionTravel: 1,
+                rollInfluence: 0.08,
+              }
+            },
+            parts: {},
+            hasBackupCamera: true,
+            hasControlScreen: true,
+            controls: {
+              "Shifter": {
+                hovering: false,
+                bounds: [-2, -3, -0.55, -0.8]
+              },
+              "Lever_L": {
+                hovering: false,
+                bounds: [3.1, 2.8, -0.25, -0.5]
+              }
+            },
+            currentControl: null,
+            views: [
+              [0.38, 0.34, -0.25, 0, 3.141592653589793, 0],
+              [0, 0.5, 6, 0.11, 3.141592653589793, 0],
+              [1.5, 0, -3, 0.05, 3.141592653589793, 0],
+              [0, 0.8, 5, -0.2, 0, 0]
+            ],
+            currentView: 0
           }
         },
         vehicle: {
@@ -582,7 +630,8 @@
             "Toyota_RAV4": "2023 Toyota RAV4",
             "Mini_Cooper": "2014 Mini Cooper S",
             "Ford_Victoria": "2010 Ford Crown Victoria",
-            "Ford_F150": "2017 Ford F-150 Raptor"
+            "Ford_F150": "2017 Ford F-150 Raptor",
+            "Chevy_Camaro": "2017 Chevrolet Camaro"
           },
           cameraBob: function(intensity = 1, maxStep = 2) {
             let step = 0;
@@ -1675,7 +1724,7 @@
               if (users.loggedIn) {
                 let hasBothCars = users.data.cars.indexOf(availableCars[0]) > -1 && users.data.cars.indexOf(availableCars[1]) > -1;
                 if (hasBothCars) {
-                  useAlternive(true);
+                  useAlternative(true);
                 } else {
                   let chosenCar = availableCars[0];
                   if (users.data.cars.indexOf(chosenCar) > -1) {

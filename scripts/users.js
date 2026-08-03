@@ -45,7 +45,7 @@ users = {
     }).then(function(response) {
       if (response.status == 200) {
         response.text().then(sessionKey => {
-          setCookie("s", sessionKey);
+          setCookie("s", sessionKey, 30);
           callback(true, 0);
           users.load(function() {
             callback(true, 1);
