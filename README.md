@@ -62,7 +62,7 @@ Gamepad Controls:
 
 ## History
 Version 5.0<br>
-<img style="width:300px" src="https://github.com/user-attachments/assets/131f5088-f1e3-42c0-9b8a-810d97eaa56b"><br>
+<img style="width:300px" src="https://github.com/user-attachments/assets/2c8c8405-5170-4af0-aeb3-e65b178237ff"><br>
 Version 4.0<br>
 <img style="width:300px" src="https://github.com/user-attachments/assets/23322c8b-2bba-4b2b-94b0-60eebf3fdc21"><br>
 Version 3.0<br>
