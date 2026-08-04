@@ -34,6 +34,8 @@ This game was just released. If you experience any bugs, [open an Issue](https:/
 3. Use the arrow keys and park in any of your choice
 4. Click "Enter" to park.
 
+The goal is to make it through all 15 levels. If you do, you'll get rewards along the way, plus a big reward at the end of the game.
+
 ### Controls
 Keyboard Controls:
 > <kbd>↑</kbd> Gas Pedal<br>
