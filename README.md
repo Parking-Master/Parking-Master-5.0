@@ -21,6 +21,7 @@ What's new with Parking Master 5.0?
 - 6 New handcrafted cars
 - New multiplayer experience
 - Improved frontend/backend security
+- New! Game Clips: if you're logged in, you can rewatch all of your recent gameplay on the [Game Clips](https://5.parkingmaster.freeddns.org/clips.html) page
 
 ## How do I play it?
 You can play free at:
