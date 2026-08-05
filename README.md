@@ -21,6 +21,7 @@ What's new with Parking Master 5.0?
 - 6 New handcrafted cars
 - New multiplayer experience
 - Improved frontend/backend security
+- New! Game Clips: if you're logged in, you can rewatch all of your recent gameplay on the [Game Clips](https://5.parkingmaster.freeddns.org/clips.html) page
 
 ## How do I play it?
 You can play free at:
@@ -33,6 +34,8 @@ This game was just released. If you experience any bugs, [open an Issue](https:/
 2. Look for colored/dashed parking spots
 3. Use the arrow keys and park in any of your choice
 4. Click "Enter" to park.
+
+The goal is to make it through all 15 levels. If you do, you'll get rewards along the way, plus a big reward at the end of the game.
 
 ### Controls
 Keyboard Controls:
@@ -62,7 +65,7 @@ Gamepad Controls:
 
 ## History
 Version 5.0<br>
-<img style="width:300px" src="https://github.com/user-attachments/assets/131f5088-f1e3-42c0-9b8a-810d97eaa56b"><br>
+<img style="width:300px" src="https://github.com/user-attachments/assets/2c8c8405-5170-4af0-aeb3-e65b178237ff"><br>
 Version 4.0<br>
 <img style="width:300px" src="https://github.com/user-attachments/assets/23322c8b-2bba-4b2b-94b0-60eebf3fdc21"><br>
 Version 3.0<br>
