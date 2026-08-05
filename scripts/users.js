@@ -193,6 +193,26 @@ users = {
         }
       });
     }
+  },
+  getLobbies: function(callback = () => {}) {
+    fetch(users.serverURL + "/lobbies/get").then(response => response.json()).then(function(lobbies) {
+      callback(lobbies);
+    });
+  },
+  createLobby: function(lobbyName, callback = () => {}) {
+    fetch(users.serverURL + "/lobbies/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        lobbyName: lobbyName
+      })
+    }).then(function(response) {
+      if (response.status == 200) {
+        callback();
+      }
+    });
   }
 };
 users.load();

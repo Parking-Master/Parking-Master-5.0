@@ -34,10 +34,15 @@
     </div>
     <img src="/images/menu/skid-marks.png" class="skid-marks">
     <div class="wrapper">
+      <div class="lobbies">
+        <h2>Active Lobbies</h2>
+        <button onclick="createLobby()">Create Lobby</button>
+        <div class="lobby-wrapper"></div>
+      </div>
       <div class="buttons-wrapper">
         <a href="src.html"><button class="button play-button" data-tippy-content="Play" data-tippy-arrow="false"></button></a>
         <a href="cars.html"><button class="button cars-button" data-tippy-content="Your Cars" data-tippy-arrow="false"></button></a>
-        <a href="#"><button class="button multiplayer-button" data-tippy-content="Multiplayer" data-tippy-arrow="false"></button></a>
+        <a href="javascript:openLobbies()"><button class="button multiplayer-button" data-tippy-content="Multiplayer" data-tippy-arrow="false"></button></a>
       </div>
       <div class="current-car-wrapper">
         <img src="/images/cars/Honda_Civic.png" class="current-car-image">

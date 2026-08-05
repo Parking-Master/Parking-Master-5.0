@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+      html, body {
+        margin: 0;
+      }
+      canvas {
+        position: absolute;
+        width: 100% !important;
+        height: 100% !important;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="/scripts/three.js"></script>
+    <script>
+      let renderer = new THREE.WebGLRenderer({ antialias: true });
+      let scene = new THREE.Scene();
+      let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 2000);
+      let clock = new THREE.Clock();
+      scene.add(camera);
+      document.body.appendChild(renderer.domElement);
+      let directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      let ambientLight = new THREE.AmbientLight(0xefe1a7, 0.4);
+      scene.add(directionalLight);
+      function animate() {
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+      animate();
+      function onWindowResize() {
+        renderer.setPixelRatio(window.devicePixelRatio);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+      }
+      window.addEventListener("resize", onWindowResize);
+      onWindowResize();
+
+      let ground = new THREE.Mesh(new THREE.BoxGeometry(1000, 1, 1000), new THREE.MeshStandardMaterial());
+      ground.position.y = -.5;
+      scene.add(ground);
+
+      camera.position.y = 10;
+    </script>
+  </body>
+</html>

@@ -39,6 +39,12 @@
         justify-content: center;
         flex-wrap: wrap;
       }
+      .clip-wrapper > p {
+        color: #999;
+        font-family: Arial, Helvetica, sans-serif;
+        max-width: 600px;
+        text-align: center;
+      }
       .clip {
         width: 200px;
         height: 100px;
@@ -276,13 +282,18 @@
     if (users.loggedIn) {
       for (clip in users.data.gameClips) {
         let clipData = JSON.parse(atob(users.data.gameClips[clip]));
-        let clipDuration = clipData.frames.length * (1 / 60);
+        let clipDuration = clipData.frames.map(frame => frame[0]).filter(deltaTime => typeof deltaTime === "number").reduce((a, b) => a + b);
         const minutes = clipDuration / 60;
         const seconds = ("." + minutes.toString().split(".")[1]) * 60;
         document.querySelector(".clip-wrapper").innerHTML += `
         <div class="clip" onclick="setReplay('${clip}')"><div class="clip-name">${clip}</div><div class="clip-track">${Math.floor(minutes)}:${("0" + Math.floor(seconds)).slice(-2)}&nbsp;&nbsp;&nbsp;&nbsp;${clipData.date}</div></div>
         `;
       }
+      if (Object.keys(users.data.gameClips).length < 1) {
+        document.querySelector(".clip-wrapper").innerHTML = `<p>You don't have any clips yet. Game Clips are videos of levels you pass in the game, so you can rewatch them at any time. To save clips, turn on "Replay" in Performance Settings the next time you play, then clips will show up here.</p>`;
+      }
+    } else {
+      location.replace("/login.html?redirect=clips.html");
     }
 
     function initializePlayer() {
@@ -457,10 +468,12 @@
         if (currentReplay) {
           const data = currentReplay.frames[currentReplayFrame];
           if (data) {
-            let currentTime = currentReplayFrame * (1 / 60);
+            let videoTime = currentReplay.frames.map(frame => frame[0]).filter(deltaTime => typeof deltaTime === "number").reduce((a, b) => a + b);
+            let averageDeltaTime = videoTime / currentReplay.frames.map(frame => frame[0]).filter(deltaTime => typeof deltaTime === "number").length;
+            let currentTime = currentReplayFrame * averageDeltaTime;
             let minutesLeft = currentTime / 60;
             let secondsLeft = ("." + minutesLeft.toString().split(".")[1]) * 60;
-            let clipTime = currentReplay.frames.length * (1 / 60);
+            let clipTime = currentReplay.frames.length * averageDeltaTime;
             let minutes = clipTime / 60;
             let seconds = ("." + minutes.toString().split(".")[1]) * 60;
             videoControlsTime.innerHTML = `${Math.floor(minutesLeft)}:${("0" + Math.floor(secondsLeft)).slice(-2)}<span style="color:#777"> / ${Math.floor(minutes)}:${("0" + Math.floor(seconds)).slice(-2)}</span>`;

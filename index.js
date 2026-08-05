@@ -25,6 +25,44 @@ function openSettings() {
   });
   if (users.loggedIn) document.querySelectorAll(".swal-content a.option").forEach(link => link.removeAttribute("data-disabled"));
 }
+function openLobbies() {
+  document.querySelector(".lobbies").classList.toggle("opened");
+}
+function createLobby() {
+  swal({
+    text: "Enter Lobby Name (3-20 characters):",
+    content: "input",
+    buttons: ["Cancel", "Next"]
+  }).then(function(lobbyName) {
+    if (lobbyName) {
+      if (lobbyName.length >= 3 && lobbyName.length <= 20) {
+        let loading = document.createElement("div");
+        loading.className = "swal-spinner";
+        swal({
+          content: loading,
+          button: false
+        });
+        users.createLobby(lobbyName, function() {
+          swal({
+            icon: "success",
+            text: "Your Lobby was created! Wait for other players to join it.",
+            button: "Close"
+          }).then(function() {
+            document.querySelector(".lobbies .lobby-wrapper").innerHTML = `
+            <a href="/multiplayer.html?lobby=${lobbyName}" class="lobby" style="outline:4px solid #47b3ff"><span class="lobby-name">${lobbyName}</span><span class="lobby-date">${new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></a>
+            ` + document.querySelector(".lobbies .lobby-wrapper").innerHTML;
+          });
+        });
+      } else {
+        swal({
+          icon: "error",
+          text: "Lobby Name must be between 3-20 characters.",
+          button: "Try Again"
+        }).then(() => createLobby());
+      }
+    }
+  });
+}
 if (users.loggedIn) {
   document.querySelector(".account .profile-picture").style.backgroundImage = "url(" + users.data.profilePicture + ")";
   document.querySelector(".account .username").textContent = users.data.username;
@@ -53,3 +91,11 @@ if (users.loggedIn) {
   document.querySelector(".account .points").textContent = (localStorage["points"] || 0) + " PTS";
   document.querySelector(".account").style = "width: auto; top: 24px; right: 25px";
 }
+users.getLobbies(function(lobbies) {
+  lobbies = lobbies.reverse();
+  for (let i = 0; i < lobbies.length; i++) {
+    document.querySelector(".lobbies .lobby-wrapper").innerHTML += `
+    <a href="/multiplayer.html?lobby=${lobbies[i].name}" class="lobby"><span class="lobby-name">${lobbies[i].name}</span><span class="lobby-date">${new Date(lobbies[i].creationDate).toLocaleDateString() + " " + new Date(lobbies[i].creationDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></a>
+    `;
+  }
+});
