@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Master 5.0 · All Users</title>
+    <style>
+      html, body {
+        margin: 0;
+        background: #f2f2f2;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .users-wrapper {
+        position: relative;
+        width: 90%;
+        margin: 0 auto;
+        top: 50px;
+        background: #ddd;
+        display: flex;
+        flex-wrap: wrap;
+        box-sizing: border-box;
+        box-shadow: 4px 4px 0 #999;
+        margin-bottom: 100px;
+        max-width: 1000px;
+        min-width: 400px;
+      }
+      .user-row {
+        position: relative;
+        width: 100%;
+        background: #fff;
+        display: flex;
+        margin: 10px;
+        padding: 10px;
+        align-items: center;
+        border: 1px solid #333;
+      }
+      .user-row .username, .user-row .points, .user-row .amount-cars, .user-row .join-date {
+        flex: 1;
+      }
+      .user-row.header-row {
+        color: #999;
+        background: transparent;
+        border: none;
+      }
+      h1 {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 30px;
+      }
+      .profile-picture {
+        position: relative;
+        width: 30px;
+        height: 30px;
+        background-size: 100%;
+        background-position: center;
+        margin-right: 10px;
+      }
+      .sort-button {
+        width: 40px;
+        margin-left: -5px;
+        margin-right: 5px;
+        background: #e9e9e9;
+        border: none;
+        border: 1px solid #333;
+        border-radius: 10px;
+        cursor: pointer;
+        color: #333;
+      }
+      .sort-button:hover {
+        background: #bbb;
+      }
+      .sort-button:active {
+        background: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="/scripts/users.js"></script>
+    <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
+    <h1><img src="/favicon.png" style="position: relative; height: 40px; vertical-align: middle"> All Users</h1>
+    <div class="users-wrapper">
+      <div class="user-row header-row">
+        <button class="sort-button">Sort</button>
+        <div class="username">Username</div>
+        <div class="points">Points</div>
+        <div class="amount-cars">Amount of Cars</div>
+        <div class="join-date">Joined</div>
+      </div>
+    </div>
+    <script>
+      Notiflix.Notify.init({
+        position: "left-top",
+        timeout: 1000,
+        info: {
+          width: "300px",
+          background: "#fff",
+          textColor: "#333",
+          notiflixIconColor: "#333"
+        }
+      });
+      let sort = "date";
+      let allUsers = null;
+      function formatNumber(number) {
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
+      }
+      function displayUsers() {
+        document.querySelectorAll(".users-wrapper .user-row").forEach(x => x.className == "user-row" && x.remove());
+        let sortedUsers = null;
+        if (sort == "date") {
+          sortedUsers = allUsers.sort(function(a, b) {
+            return a.createdAt - b.createdAt;
+          });
+        } else if (sort == "points") {
+          sortedUsers = allUsers.sort(function(a, b) {
+            return a.points - b.points;
+          }).reverse();
+        }
+        for (let i = 0; i < sortedUsers.length; i++) {
+          let user = sortedUsers[i];
+          let userRow = document.createElement("div");
+          userRow.className = "user-row";
+          userRow.innerHTML += `
+          <div class="profile-picture" style="background-image:url(${user.profilePicture})"></div>
+          <div class="username">${user.username}</div>
+          <div class="points">${formatNumber(user.points)}</div>
+          <div class="amount-cars">${user.cars.length}</div>
+          <div class="join-date">${new Date(user.createdAt).toLocaleDateString()}</div>
+          `;
+          document.querySelector(".users-wrapper").appendChild(userRow);
+        }
+      }
+      document.querySelector(".sort-button").addEventListener("click", function() {
+        if (sort == "date") {
+          sort = "points";
+        } else if (sort == "points") {
+          sort = "date";
+        }
+        Notiflix.Notify.info("Sorting users by " + sort);
+        displayUsers();
+      });
+      users.getAllUsers(function(_allUsers) {
+        allUsers = _allUsers;
+        displayUsers();
+      });
+    </script>
+  </body>
+</html>

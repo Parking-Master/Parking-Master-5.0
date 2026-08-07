@@ -213,6 +213,11 @@ users = {
         callback();
       }
     });
+  },
+  getAllUsers: function(callback = () => {}) {
+    fetch(users.serverURL + "/users").then(response => response.json()).then(function(allUsers) {
+      callback(allUsers);
+    });
   }
 };
 users.load();
