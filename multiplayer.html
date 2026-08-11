@@ -3,11 +3,15 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Parking Master 5.0 · Multiplayer Match</title>
     <style>
       @font-face {
         font-family: "Digital";
         src: url(https://parkingmaster.tk/fonts/Digital.ttf);
+      }
+      @font-face {
+        font-family: "Toxigenesis";
+        src: url(/fonts/Toxigenesis.ttf);
       }
       html, body {
         margin: 0;
@@ -21,18 +25,149 @@
         position: absolute;
         left: 20px;
         bottom: 20px;
-        font-size: 200px;
+        font-size: 150px;
         color: #333;
         z-index: 9999;
         font-family: "Digital", monospace, Arial;
+      }
+      .swal-overlay {
+        background: rgba(0, 0, 0, 0.2);
+      }
+      .swal-modal {
+        width: 350px;
+        background: rgba(150, 150, 190, 0.6);
+        border: 1px solid #97b7ff;
+        color: #fff;
+        border-radius: 2px;
+        font-family: "Toxigenesis", Arial;
+      }
+      .swal-title {
+        color: #fff;
+        font-size: 40px;
+      }
+      .swal-text {
+        color: #fff;
+        text-align: center;
+      }
+      .swal-icon img {
+        width: 75px;
+      }
+      .swal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .swal-button {
+        font-family: "Toxigenesis", Arial;
+        border-radius: 2px;
+        padding: 4px 20px;
+        background-color: #34a0ff;
+        color: #fff;
+      }
+      .countdown-banner {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.4);
+        font-family: "Digital", monospace, Arial;
+        font-size: 60px;
+        color: #fff;
+        z-index: 9999999;
       }
     </style>
   </head>
   <body>
     <script src="/scripts/three.js"></script>
+    <script src="/scripts/GLTFLoader.js"></script>
     <script src="/scripts/cannon.js"></script>
+    <script src="/scripts/sweetalert.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Parking-Master/Gametime.js-4.0@latest/gametime.min.js"></script>
+    <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <div class="speed"><span id="value">0</span><span style="font-size: 30px">MPH</span></div>
+    <div class="countdown-banner">
+      <div class="countdown-text">0</div>
+    </div>
     <script>
+      let team = "red";
+      let vehicles = [];
+      let allowedToUseControls = false;
+      let speedText = document.querySelector(".speed #value");
+      let gameStarted = false;
+      let gameStartTime = null;
+      let showFirstCountdownText = false;
+      let showSecondCountdownText = false;
+      let levelModel = null;
+      let currentLevel = null;
+      let parkingSpots = {};
+      let trafficCone = null;
+      let trafficCones = [];
+      gametime.set("player", {
+        position: [0, 0, 0, 0, 0, 0, 0, 0],
+        score: 0,
+        ready: false,
+        parked: false
+      });
+      let lobby = new URLSearchParams(location.search).get("lobby");
+      if (!lobby) alert("Lobby name is not valid!"), location.replace("/");
+      gametime.set("channel", lobby);
+      gametime.serverURL="ws://192.168.70.58:7201";
+      gametime.connect();
+      let teamsInitialized = false;
+      let playersInitialized = false;
+      gametime.onupdate = function(player) {
+        if (Object.keys(gametime.players).length >= 2) {
+          if (!gameStarted) {
+            gameStarted = true;
+            swal({
+              title: "Player found!",
+              text: "Connecting player...",
+              button: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            });
+            gametime.player.data.ready = true;
+          }
+        }
+        if (!teamsInitialized) {
+          teamsInitialized = true;
+          if (gametime.player.position == 1) {
+            vehicles.push(createVehicle("red"));
+            vehicles.push(createVehicle("blue"));
+            team = "red";
+          } else if (gametime.player.position == 2) {
+            vehicles.push(createVehicle("blue"));
+            vehicles.push(createVehicle("red"));
+            team = "blue";
+          }
+          scene.traverse(child => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          animate();
+        }
+      };
+
+      function showCountdown() {
+        document.querySelector(".countdown-banner").style.display = "flex";
+      }
+      function hideCountdown() {
+        document.querySelector(".countdown-banner").style.display = "none";
+      }
+
       let renderer = new THREE.WebGLRenderer({ antialias: true });
       let scene = new THREE.Scene();
       let camera = new THREE.PerspectiveCamera(10, window.innerWidth / window.innerHeight, 0.01, 2000);
@@ -41,7 +176,7 @@
       scene.add(camera);
       document.body.appendChild(renderer.domElement);
 
-      let directionalLight = new THREE.DirectionalLight(16777215, 0.8);
+      let directionalLight = new THREE.DirectionalLight(16777215, 0.87);
       let ambientLight = new THREE.AmbientLight(16777215, 0.6);
       renderer.shadowMap.enabled = true;
       directionalLight.castShadow = true;
@@ -62,24 +197,36 @@
       let frameCount = 0;
       let keyStates = {};
       let gasPedal = 0;
+      let brakePedal = 0;
       let steerAmount = 0;
       function animate() {
         const deltaTime = Math.min(0.04, clock.getDelta());
         world.step(deltaTime);
-        vehicle.mesh.position.copy(vehicle.body.position);
-        vehicle.mesh.quaternion.copy(vehicle.body.quaternion);
-        for (let i = 0; i < vehicle.wheelInfos.length; i++) {
-          const wheel = vehicle.wheelInfos[i];
-          vehicle.updateWheelTransform(wheel.index);
-          wheel.body.position.copy(wheel.worldTransform.position);
-          wheel.body.quaternion.copy(wheel.worldTransform.quaternion);
-          wheel.mesh.position.copy(wheel.body.position);
-          wheel.mesh.quaternion.copy(wheel.body.quaternion);
-        }
         updateEngine();
+        updateBrakes();
         updateSteering();
         updateInfo();
         updateView(deltaTime);
+        updatePlayers();
+        for (let i = 0; i < vehicles.length; i++) {
+          vehicles[i].mesh.position.copy(vehicles[i].body.position);
+          vehicles[i].mesh.quaternion.copy(vehicles[i].body.quaternion);
+          for (let j = 0; j < vehicles[i].wheelInfos.length; j++) {
+            const wheel = vehicles[i].wheelInfos[j];
+            vehicles[i].updateWheelTransform(wheel.index);
+            wheel.body.position.copy(wheel.worldTransform.position);
+            wheel.body.quaternion.copy(wheel.worldTransform.quaternion);
+            wheel.mesh.position.copy(wheel.body.position);
+            wheel.mesh.quaternion.copy(wheel.body.quaternion);
+          }
+          if (Math.abs(vehicles[i].body.position.x) > 28 || Math.abs(vehicles[i].body.position.z) > 18) {
+            gameOver("outofbounds", i + 1);
+          }
+        }
+        for (let i = 0; i < trafficCones.length; i++) {
+          trafficCones[i].mesh.position.copy(trafficCones[i].body.position);
+          trafficCones[i].mesh.quaternion.copy(trafficCones[i].body.quaternion);
+        }
         frameCount++;
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
@@ -95,174 +242,463 @@
 
       const world = new CANNON.World();
       world.gravity.set(0, -9.82, 0);
-      // const groundMaterial = new CANNON.Material("groundMaterial");
-      // const wheelMaterial = new CANNON.Material("wheelMaterial");
-      // const carMaterial = new CANNON.Material("carMaterial");
-      // const wheelGroundContactMaterial = new CANNON.ContactMaterial(wheelMaterial, groundMaterial, { friction: 0.3 });
-      // world.addContactMaterial(wheelGroundContactMaterial);
-      // const carGroundContactMaterial = new CANNON.ContactMaterial(carMaterial, groundMaterial, { friction: 0.01 });
-      // world.addContactMaterial(carGroundContactMaterial);
 
-      let ground = new THREE.Mesh(new THREE.BoxGeometry(1000, 1, 1000), new THREE.MeshStandardMaterial());
-      ground.position.y = -.5;
+      let ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial());
+      ground.position.y = -1;
+      ground.rotation.x = -Math.PI / 2;
       scene.add(ground);
 
-      let vehicleData = {
-        physics: {
-          engineForce: 5000,
-          frontArea: 2.2,
-          rearArea: 2.7,
-          weight: 1500,
-          wheelPhysics: {
-            radius: 0.6,
-            suspensionStiffness: 36,
-            suspensionRestLength: 0.2,
-            frictionSlip: 2,
-            dampingRelaxation: 6,
-            dampingCompression: 4.5,
-            maxSuspensionForce: 120000,
-            maxSuspensionTravel: 1,
-            rollInfluence: 0.08
+      function createVehicle(teamColor) {
+        let vehicleData = {
+          physics: {
+            engineForce: 5000,
+            frontArea: 2.2,
+            rearArea: 2.7,
+            weight: 1500,
+            wheelPhysics: {
+              radius: 0.6,
+              suspensionStiffness: 36,
+              suspensionRestLength: 0.2,
+              frictionSlip: 2,
+              dampingRelaxation: 6,
+              dampingCompression: 4.5,
+              maxSuspensionForce: 120000,
+              maxSuspensionTravel: 1,
+              rollInfluence: 0.08
+            }
+          },
+          structure: {
+            bounds: [3, 1.5, 6],
+            body: [3, 1.5, 6],
+            roof: [2.6, 1.2, 3.3, 0, 1.35, 0.4]
+          },
+          parts: {
+            Wheels: []
           }
-        },
-        structure: {
-          bounds: [3, 1.5, 6],
-          body: [3, 1.5, 6],
-          roof: [2.6, 1.2, 3.3, 0, 1.35, 0.4]
-        },
-        parts: {
-          Wheels: []
+        };
+        let vehicle = Object.assign(new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 }), vehicleData);
+        vehicle.chassisBody = new CANNON.Body({ mass: 2000, shape: new CANNON.Box(new CANNON.Vec3(vehicle.structure.bounds[0] / 2, vehicle.structure.bounds[1] / 2, vehicle.structure.bounds[2] / 2)) });
+        vehicle.body = vehicle.chassisBody;
+        vehicle.body.addEventListener("collide", function(event) {
+          if (trafficCones.map(x => x.body).indexOf(event.contact.bj) > -1) {
+            gameOver("crash", event.target == vehicles[0].body ? 1 : 2);
+          }
+        });
+        vehicle.corners = {
+          fl: new THREE.Vector3(vehicle.structure.bounds[0] / 2, -vehicle.structure.bounds[1] / 2, vehicle.structure.bounds[2] / 2),
+          fr: new THREE.Vector3(-vehicle.structure.bounds[0] / 2, -vehicle.structure.bounds[1] / 2, vehicle.structure.bounds[2] / 2),
+          rl: new THREE.Vector3(vehicle.structure.bounds[0] / 2, -vehicle.structure.bounds[1] / 2, -vehicle.structure.bounds[2] / 2),
+          rr: new THREE.Vector3(-vehicle.structure.bounds[0] / 2, -vehicle.structure.bounds[1] / 2, -vehicle.structure.bounds[2] / 2)
+        };
+        function frontRearWindowTexture() {
+          const canvas = document.createElement("canvas");
+          canvas.width = 64;
+          canvas.height = 32;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, 64, 32);
+          ctx.fillStyle = "#000000";
+          ctx.fillRect(8, 8, 48, 24);
+          return new THREE.CanvasTexture(canvas);
         }
-      };
-
-      let vehicle = Object.assign(new CANNON.RaycastVehicle({ indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 }), vehicleData);
-
-      vehicle.chassisBody = new CANNON.Body({ mass: 2000, shape: new CANNON.Box(new CANNON.Vec3(vehicle.structure.bounds[0] / 2, vehicle.structure.bounds[1] / 2, vehicle.structure.bounds[2] / 2)) });
-      vehicle.body = vehicle.chassisBody;
-
-      function frontRearWindowTexture() {
-        const canvas = document.createElement("canvas");
-        canvas.width = 64;
-        canvas.height = 32;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, 64, 32);
-        ctx.fillStyle = "#000000";
-        ctx.fillRect(8, 8, 48, 24);
-        return new THREE.CanvasTexture(canvas);
-      }
-      function sideWindowTexture(flip = false) {
-        const canvas = document.createElement("canvas");
-        canvas.width = 128;
-        canvas.height = 32;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, 128, 32);
-        ctx.fillStyle = "#000000";
-        if (flip) {
-          ctx.fillRect(10, 8, 38, 24);
-          ctx.fillRect(58, 8, 60, 24);
+        function sideWindowTexture(flip = false) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 128;
+          canvas.height = 32;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, 128, 32);
+          ctx.fillStyle = "#000000";
+          if (flip) {
+            ctx.fillRect(10, 8, 38, 24);
+            ctx.fillRect(58, 8, 60, 24);
+          } else {
+            ctx.fillRect(10, 8, 60, 24);
+            ctx.fillRect(80, 8, 38, 24);
+          }
+          return new THREE.CanvasTexture(canvas);
+        }
+        vehicle.mesh = new THREE.Object3D();
+        let _carBody = new THREE.Mesh(new THREE.BoxGeometry(vehicle.structure.body[0], vehicle.structure.body[1], vehicle.structure.body[2]), new THREE.MeshStandardMaterial({ color: teamColor == "red" ? 0xf23232 : 0x0465ce }));
+        let _carRoof = new THREE.Mesh(new THREE.BoxGeometry(vehicle.structure.roof[0], vehicle.structure.roof[1], vehicle.structure.roof[2]), [new THREE.MeshLambertMaterial({ map: sideWindowTexture(true) }), new THREE.MeshLambertMaterial({ map: sideWindowTexture() }), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial({ map: frontRearWindowTexture() }), new THREE.MeshLambertMaterial({ map: frontRearWindowTexture() })]);
+        _carRoof.position.set(vehicle.structure.roof[3], vehicle.structure.roof[4], vehicle.structure.roof[5]);
+        vehicle.mesh.add(_carBody);
+        vehicle.mesh.add(_carRoof);
+        scene.add(vehicle.mesh);
+        vehicle.physics.wheelPhysics.directionLocal = new CANNON.Vec3(0, -1, 0);
+        vehicle.physics.wheelPhysics.axleLocal = new CANNON.Vec3(-1, 0, 0);
+        vehicle.physics.wheelPhysics.chassisConnectionPointLocal = new CANNON.Vec3(1, 1, 0);
+        for (let i = 0; i < 4; i++) {
+          const wheelMesh = new THREE.Mesh(new THREE.CylinderGeometry(vehicle.physics.wheelPhysics.radius, vehicle.physics.wheelPhysics.radius, .5, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+          wheelMesh.geometry.rotateZ(-Math.PI/2);
+          if (i == 0) {
+            wheelMesh.position.set(-(vehicle.structure.body[0] / 2 - .1), -.5, -(vehicle.structure.body[2] / 2 - 1.2));
+          } else if (i == 1) {
+            wheelMesh.position.set(-(vehicle.structure.body[0] / 2 - .1), -.5, (vehicle.structure.body[2] / 2 - 1.2));
+          } else if (i == 2) {
+            wheelMesh.position.set((vehicle.structure.body[0] / 2 - .1), -.5, -(vehicle.structure.body[2] / 2 - 1.2));
+          } else if (i == 3) {
+            wheelMesh.position.set((vehicle.structure.body[0] / 2 - .1), -.5, (vehicle.structure.body[2] / 2 - 1.2));
+          }
+          vehicle.parts.Wheels.push(wheelMesh);
+          scene.add(wheelMesh);
+          vehicle.physics.wheelPhysics.chassisConnectionPointLocal.copy(wheelMesh.position);
+          vehicle.addWheel(vehicle.physics.wheelPhysics);
+          const wheel = vehicle.wheelInfos[i];
+          wheel.index = i;
+          wheel.mesh = wheelMesh;
+          wheel.body = new CANNON.Body({ mass: 10 });
+          let q = new CANNON.Quaternion();
+          q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
+          wheel.body.addShape(new CANNON.Cylinder(vehicle.physics.wheelPhysics.radius, vehicle.physics.wheelPhysics.radius, vehicle.physics.wheelPhysics.radius / 2, 20), new CANNON.Vec3(), q);
+        }
+        if (teamColor == "red") {
+          vehicle.body.position.set(-10, 1, 0);
         } else {
-          ctx.fillRect(10, 8, 60, 24);
-          ctx.fillRect(80, 8, 38, 24);
+          vehicle.body.position.set(0, 1, 0);
         }
-        return new THREE.CanvasTexture(canvas);
+        vehicle.addToWorld(world);
+        return vehicle;
       }
-      vehicle.mesh = new THREE.Object3D();
-      let _carBody = new THREE.Mesh(new THREE.BoxGeometry(vehicle.structure.body[0], vehicle.structure.body[1], vehicle.structure.body[2]), new THREE.MeshStandardMaterial({ color: 0x999999 }));
-      let _carRoof = new THREE.Mesh(new THREE.BoxGeometry(vehicle.structure.roof[0], vehicle.structure.roof[1], vehicle.structure.roof[2]), [new THREE.MeshLambertMaterial({ map: sideWindowTexture(true) }), new THREE.MeshLambertMaterial({ map: sideWindowTexture() }), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial({ map: frontRearWindowTexture() }), new THREE.MeshLambertMaterial({ map: frontRearWindowTexture() })]);
-      _carRoof.position.set(vehicle.structure.roof[3], vehicle.structure.roof[4], vehicle.structure.roof[5]);
-      vehicle.mesh.add(_carBody);
-      vehicle.mesh.add(_carRoof);
-      scene.add(vehicle.mesh);
-
-      vehicle.physics.wheelPhysics.directionLocal = new CANNON.Vec3(0, -1, 0);
-      vehicle.physics.wheelPhysics.axleLocal = new CANNON.Vec3(-1, 0, 0);
-      vehicle.physics.wheelPhysics.chassisConnectionPointLocal = new CANNON.Vec3(1, 1, 0);
-      for (let i = 0; i < 4; i++) {
-        const wheelMesh = new THREE.Mesh(new THREE.CylinderGeometry(vehicle.physics.wheelPhysics.radius, vehicle.physics.wheelPhysics.radius, .5, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-        wheelMesh.geometry.rotateZ(-Math.PI/2);
-        if (i == 0) {
-          wheelMesh.position.set(-(vehicle.structure.body[0] / 2 - .1), -.5, -(vehicle.structure.body[2] / 2 - 1.2));
-        } else if (i == 1) {
-          wheelMesh.position.set(-(vehicle.structure.body[0] / 2 - .1), -.5, (vehicle.structure.body[2] / 2 - 1.2));
-        } else if (i == 2) {
-          wheelMesh.position.set((vehicle.structure.body[0] / 2 - .1), -.5, -(vehicle.structure.body[2] / 2 - 1.2));
-        } else if (i == 3) {
-          wheelMesh.position.set((vehicle.structure.body[0] / 2 - .1), -.5, (vehicle.structure.body[2] / 2 - 1.2));
-        }
-        vehicle.parts.Wheels.push(wheelMesh);
-        scene.add(wheelMesh);
-        vehicle.physics.wheelPhysics.chassisConnectionPointLocal.copy(wheelMesh.position);
-        vehicle.addWheel(vehicle.physics.wheelPhysics);
-        const wheel = vehicle.wheelInfos[i];
-        wheel.index = i;
-        wheel.mesh = wheelMesh;
-        wheel.body = new CANNON.Body({ mass: 10 });
-        let q = new CANNON.Quaternion();
-        q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
-        wheel.body.addShape(new CANNON.Cylinder(vehicle.physics.wheelPhysics.radius, vehicle.physics.wheelPhysics.radius, vehicle.physics.wheelPhysics.radius / 2, 20), new CANNON.Vec3(), q);
-      }
-      vehicle.chassisBody.position.y = 1;
-      vehicle.addToWorld(world);
 
       let groundShape = new CANNON.Plane();
       let groundBody = new CANNON.Body({ mass: 0 });
       groundBody.addShape(groundShape);
       groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
       world.add(groundBody);
-
       function updateEngine() {
         if (keyStates["ArrowUp"]) {
           gasPedal = 1;
+        } else if (keyStates["ArrowDown"]) {
+          gasPedal = -1;
         } else {
           gasPedal = 0;
         }
-        let engineForce = vehicle.physics.engineForce * gasPedal;
-        vehicle.applyEngineForce(engineForce, 0);
-        vehicle.applyEngineForce(engineForce, 1);
+        let engineForce = vehicles[0].physics.engineForce * gasPedal;
+        vehicles[0].applyEngineForce(engineForce, 0);
+        vehicles[0].applyEngineForce(engineForce, 1);
+      }
+      function updateBrakes(deltaTime) {
+        vehicles[0].setBrake(0, 0);
+        vehicles[0].setBrake(0, 1);
+        vehicles[0].setBrake(0, 2);
+        vehicles[0].setBrake(0, 3);
+        if (keyStates["b"] || Math.abs(vehicles[0].currentVehicleSpeedKmHour) < 0.5) {
+          brakePedal = 1;
+        } else {
+          brakePedal = 0;
+        }
+        if (gasPedal == 0) {
+          if (vehicles[0].speed < 0.15 && vehicles[0].speed > 0.02) {
+            vehicles[0].setBrake(10, 0);
+            vehicles[0].setBrake(10, 1);
+            vehicles[0].setBrake(10, 2);
+            vehicles[0].setBrake(10, 3);
+          } else {
+            vehicles[0].applyEngineForce(brakePedal * vehicles[0].currentVehicleSpeedKmHour * 400, 0);
+            vehicles[0].applyEngineForce(brakePedal * vehicles[0].currentVehicleSpeedKmHour * 400, 1);
+            vehicles[0].applyEngineForce(brakePedal * vehicles[0].currentVehicleSpeedKmHour * 400, 2);
+            vehicles[0].applyEngineForce(brakePedal * vehicles[0].currentVehicleSpeedKmHour * 400, 3);
+          }
+        }
       }
       function updateSteering() {
         if (keyStates["ArrowLeft"]) {
-          steerAmount = Math.min(steerAmount + .05, 1);
+          steerAmount = Math.min(steerAmount + .03, .8);
         } else if (keyStates["ArrowRight"]) {
-          steerAmount = Math.max(steerAmount - .05, -1);
+          steerAmount = Math.max(steerAmount - .03, -.8);
         } else {
-          steerAmount /= 1.5;
+          steerAmount /= 1.3;
           if (Math.abs(steerAmount) <= .1) steerAmount = 0;
         }
-        vehicle.setSteeringValue(steerAmount, 0);
-        vehicle.setSteeringValue(steerAmount, 2);
+        vehicles[0].setSteeringValue(steerAmount, 0);
+        vehicles[0].setSteeringValue(steerAmount, 2);
       }
-      let speedText = document.querySelector(".speed #value");
       function updateInfo() {
-        const velocity = new CANNON.Vec3().copy(vehicle.body.velocity);
-        vehicle.speed = velocity.length();
-        vehicle.speedMPH = vehicle.speed * 2.236936;
-        if (frameCount % 3 == 0) speedText.textContent = Math.round(vehicle.speedMPH);
+        const velocity = new CANNON.Vec3().copy(vehicles[0].body.velocity);
+        vehicles[0].speed = velocity.length();
+        vehicles[0].speedMPH = vehicles[0].speed * 2.236936;
+        if (frameCount % 3 == 0) speedText.textContent = Math.round(vehicles[0].speedMPH);
+        if (showFirstCountdownText) {
+          let seconds = Math.ceil(10 - ((Date.now() - gameStartTime) / 1000));
+          if (seconds > 3) {
+            document.querySelector("#first-countdown").textContent = seconds;
+          } else {
+            showFirstCountdownText = false;
+            document.querySelector(".countdown-banner .countdown-text").textContent = seconds;
+            startNextRound(true);
+          }
+        }
+        if (showSecondCountdownText) {
+          let seconds = Math.ceil(10 - ((Date.now() - gameStartTime) / 1000));
+          if (seconds >= 0) {
+            document.querySelector(".countdown-banner .countdown-text").textContent = seconds == 0 ? "GO!" : seconds;
+          } else {
+            showSecondCountdownText = false;
+            hideCountdown();
+            allowedToUseControls = true;
+          }
+        }
       }
       function updateView(deltaTime) {
-        camera.position.set(-25, 25, 5);
+        camera.position.set(-80, 40, 20);
+        if (!gameStarted) return camera.lookAt(vehicles[0].mesh.position);
         const targetQuaternion = new THREE.Quaternion();
-        const m = new THREE.Matrix4().lookAt(camera.position, vehicle.mesh.position, camera.up);
+        const m = new THREE.Matrix4().lookAt(camera.position, vehicles[0].mesh.position, camera.up);
         targetQuaternion.setFromRotationMatrix(m);
         camera.quaternion.slerp(targetQuaternion, deltaTime);
       }
+      function updatePlayers() {
+        if (gametime.connected) {
+          gametime.player.data.position = [vehicles[0].body.position.x, vehicles[0].body.position.y, vehicles[0].body.position.z, vehicles[0].body.quaternion.x, vehicles[0].body.quaternion.y, vehicles[0].body.quaternion.z, vehicles[0].body.quaternion.w, steerAmount];
+          gametime.update();
+          for (player in gametime.players) {
+            if (player != gametime.player.uuid && typeof vehicles[1] !== "undefined") {
+              let position = gametime.players[player].data.position;
+              vehicles[1].body.position.set(position[0], position[1], position[2]);
+              vehicles[1].body.quaternion.set(position[3], position[4], position[5], position[6]);
+              vehicles[1].setSteeringValue(position[7], 0);
+              vehicles[1].setSteeringValue(position[7], 2);
+              if (!playersInitialized && gametime.players[player].data.ready && gametime.player.data.ready) {
+                playersInitialized = true;
+                let content = document.createElement("div");
+                content.innerHTML = `
+                <p>You are on <span style="color:${team}">${team} team</span>. Park in any spot faster than your opponent!</p>
+                <h1 id="first-countdown">10</h1>
+                `;
+                swal({
+                  title: "Starting game",
+                  content: content,
+                  button: false,
+                  closeOnEsc: false,
+                  closeOnEnterKey: false,
+                  closeOnSpaceKey: false,
+                  closeOnClickOutside: false
+                });
+                gameStartTime = Date.now();
+                showFirstCountdownText = true;
+              }
+              if (gametime.players[player].data.parked) {
+                gameOver("parked");
+              }
+            }
+          }
+        }
+      }
+      function gameOver(reason, player) {
+        if (!allowedToUseControls) return;
+        allowedToUseControls = false;
+        for (key in keyStates) keyStates[key] = false;
+        if (reason == "outofbounds") {
+          if (player == 1) {
+            swal({
+              title: "Round over",
+              text: "You lost this round by crossing the red line! Starting next round...",
+              button: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            });
+            setTimeout(startNextRound, 5000);
+          } else {
+            swal({
+              title: "Round over",
+              text: "You won this round because your opponent crossed the red line! Starting next round...",
+              button: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            });
+            gametime.player.data.score++;
+            setTimeout(startNextRound, 5000);
+          }
+        } else if (reason == "parked") {
+          swal({
+            title: "Round over",
+            text: "You lost this round! Starting next round...",
+            button: false,
+            closeOnEsc: false,
+            closeOnEnterKey: false,
+            closeOnSpaceKey: false,
+            closeOnClickOutside: false
+          });
+          setTimeout(startNextRound, 5000);
+        } else if (reason == "crash") {
+          if (player == 1) {
+            swal({
+              title: "Round over",
+              text: "You lost this round because you hit a traffic cone! Starting next round...",
+              button: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            });
+            setTimeout(startNextRound, 5000);
+          } else if (player == 2) {
+            swal({
+              title: "Round over",
+              text: "You won this round because your opponent hit a traffic cone! Starting next round...",
+              button: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            });
+            gametime.player.data.score++;
+            setTimeout(startNextRound, 5000);
+          }
+        }
+      }
+      function park() {
+        let distances = [];
+        let parkingSpot = null;
+        let closestSpotDistance = null;
+        for (type in parkingSpots) {
+          const arrayCorners = Object.values(parkingSpots[type].corners);
+          const distance = arrayCorners.reduce((a, b) => a.clone().add(b)).divide(new THREE.Vector3(arrayCorners.length, arrayCorners.length, arrayCorners.length)).distanceTo(vehicles[0].body.position);
+          if (!parkingSpot || distance < closestSpotDistance) {
+            parkingSpot = parkingSpots[type];
+            closestSpotDistance = distance;
+          }
+        }
+        let lowestDistance, highestDistance;
+        function getDistance(spotCorners = parkingSpot.corners) {
+          for (corner in vehicles[0].corners) {
+            const axis = vehicles[0].corners[corner].clone().applyQuaternion(vehicles[0].mesh.quaternion);
+            const cornerPosition = new THREE.Vector3().copy(vehicles[0].mesh.position).add(axis);
+            const cornerDistance = cornerPosition.distanceTo(spotCorners[corner]);
+            distances.push(cornerDistance);
+          }
+          lowestDistance = Math.min(...distances);
+          highestDistance = Math.max(...distances);
+          if (highestDistance - lowestDistance > 1 || highestDistance > 2.5) {
+            if (spotCorners == parkingSpot.corners) {
+              distances = [];
+              return getDistance({ fl: parkingSpot.corners.rr, fr: parkingSpot.corners.rl, rl: parkingSpot.corners.fr, rr: parkingSpot.corners.fl });
+            } else {
+              return false;
+            }
+          }
+          return true;
+        }
+        if (!getDistance()) return Notiflix.Notify.failure("You are not in the parking spot."), false;
+        allowedToUseControls = false;
+        swal({
+          title: "You parked!",
+          text: "You won this round. Starting next round...",
+          button: false,
+          closeOnEsc: false,
+          closeOnEnterKey: false,
+          closeOnSpaceKey: false,
+          closeOnClickOutside: false
+        });
+        gametime.player.data.parked = true;
+        gametime.player.data.score++;
+        setTimeout(startNextRound, 5000);
+      }
+      function addTrafficCone(position) {
+        let mesh = trafficCone.clone();
+        let body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.08, 0.5, 0.08)) });
+        body.position.set(position.x, position.y, position.z);
+        world.add(body);
+        scene.add(mesh);
+        trafficCones.push({ mesh: mesh, body: body });
+      }
+      function removeAllTrafficCones() {
+        trafficCones.forEach(x => (scene.remove(x.mesh), world.remove(x.body)));
+      }
+      function loadLevel(level, initial = false) {
+        function next() {
+          if (swal.getState().isOpen) swal.close();
+          gameStartTime = Date.now() - 7000;
+          showSecondCountdownText = true;
+          showCountdown();
+        }
+        if (level == currentLevel) return next();
+        new THREE.GLTFLoader().load("/models/multiplayer-levels/lvl" + level + ".glb", function(model) {
+          removeAllTrafficCones();
+          scene.remove(levelModel);
+          levelModel = model.scene;
+          scene.add(levelModel);
+          if (initial) trafficCone = levelModel.getObjectByName("Traffic_Cone"), levelModel.remove(trafficCone);
+          parkingSpots = {};
+          levelModel.traverse(child => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              if (child.material && child.material.map) {
+                child.material.map.anisotropy = 4;
+                child.material.map.needsUpdate = true;
+              }
+            }
+            if (child.name.includes("Parking_Spot")) {
+              const type = child.name.split("_").pop();
+              parkingSpots[type] = {
+                type: type,
+                corners: {}
+              };
+              child.traverse(child => {
+                if (child.name.startsWith("Marker_")) parkingSpots[type].corners[child.name.split("_")[1].toLowerCase()] = child.position;
+              });
+            } else if (child.name.includes("Traffic_Cone")) {
+              addTrafficCone(child.position);
+            }
+          });
+          currentLevel = level;
+          if (!initial) {
+            swal({
+              title: level == 3 ? "Final Round" : "Round " + level,
+              button: false,
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            });
+            setTimeout(next, 2500);
+          }
+        });
+      }
+      function startNextRound(initial = false) {
+        gametime.player.data.parked = false;
+        vehicles[0].body.quaternion.setFromEuler(0, 0, 0);
+        vehicles[1].body.quaternion.setFromEuler(0, 0, 0);
+        vehicles[0].body.velocity.set(0, 0, 0);
+        vehicles[1].body.velocity.set(0, 0, 0);
+        if (team == "red") {
+          vehicles[0].body.position.set(-10, 1.5, 0);
+          vehicles[1].body.position.set(0, 1.5, 0);
+        } else {
+          vehicles[0].body.position.set(0, 1.5, 0);
+          vehicles[1].body.position.set(-10, 1.5, 0);
+        }
+        loadLevel(initial ? 1 : currentLevel + 1);
+      }
+      loadLevel(1, true);
 
-      document.addEventListener("keydown", function() {
+      document.addEventListener("keydown", function(event) {
+        if (!allowedToUseControls) return;
         keyStates[event.key] = true;
+        if (event.key == "Enter" && !event.repeat) {
+          park();
+        }
       });
-      document.addEventListener("keyup", function() {
+      document.addEventListener("keyup", function(event) {
+        if (!allowedToUseControls) return;
         keyStates[event.key] = false;
       });
 
-      animate();
-      scene.traverse(child => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      })
+      swal({
+        title: "Please wait",
+        text: "Waiting for 1 player to start...",
+        button: false,
+        closeOnEsc: false,
+        closeOnEnterKey: false,
+        closeOnSpaceKey: false,
+        closeOnClickOutside: false
+      });
     </script>
   </body>
 </html>

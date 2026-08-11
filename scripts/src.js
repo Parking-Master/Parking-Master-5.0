@@ -733,7 +733,7 @@
             vehicle.setBrake(0, 1);
             vehicle.setBrake(0, 2);
             vehicle.setBrake(0, 3);
-            if (vehicle.physics.brake) {
+            if (utils.data.brake) {
               if (utils.data.timeOfBrake == null) utils.data.timeOfBrake = time;
               const brakeTime = time - utils.data.timeOfBrake;
               if (utils.data.isUsingKeyboard) brake = brakeTime < 700 ? 100 : 100 + Math.min((brakeTime - 700) * deltaTime * 20, 500);
@@ -1917,16 +1917,16 @@
             },
             brake: function(doSound = true) {
               if (utils.data.throttle) utils.game.controls.stopThrottle();
-              vehicle.physics.brake = true;
+              utils.data.brake = true;
               utils.vehicle.setLights(true, "brake");
               if (doSound && (Date.now() - utils.data.lastThrottle < 500 || Math.floor(Math.random() * 4) == 0)) sounds.pedal();
             },
             stopBrake: function() {
-              vehicle.physics.brake = false;
+              utils.data.brake = false;
               utils.vehicle.setLights(false, "brake");
             },
             throttle: function() {
-              if (vehicle.physics.brake) utils.game.controls.stopBrake();
+              if (utils.data.brake) utils.game.controls.stopBrake();
               if (utils.data.currentTransmission != "park") utils.data.throttle = true;
             },
             stopThrottle: function() {

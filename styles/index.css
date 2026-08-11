@@ -16,6 +16,7 @@ html, body {
   overflow: hidden !important;
   font-family: Arial, Helvetica, sans-serif;
   background: #fff;
+  /* cursor: url(/images/cursors/0.png) 0 0, default; */
 }
 * {
   -webkit-user-select: none !important;
