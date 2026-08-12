@@ -25,7 +25,8 @@
         position: absolute;
         left: 20px;
         bottom: 20px;
-        font-size: 150px;
+        margin-bottom: -30px;
+        font-size: 120px;
         color: #333;
         z-index: 9999;
         font-family: "Digital", monospace, Arial;
@@ -84,6 +85,29 @@
         color: #fff;
         z-index: 9999999;
       }
+      .score {
+        position: absolute;
+        border-radius: 100%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        color: #fff;
+        font-family: "Digital", monospace, Arial;
+        font-size: 26px;
+        z-index: 9999999;
+        bottom: 20px;
+      }
+      .score-red {
+        left: 150px;
+        background: #ff0000;
+      }
+      .score-blue {
+        left: 220px;
+        background: #2679ff;
+      }
     </style>
   </head>
   <body>
@@ -91,17 +115,24 @@
     <script src="/scripts/GLTFLoader.js"></script>
     <script src="/scripts/cannon.js"></script>
     <script src="/scripts/sweetalert.js"></script>
+    <script src="/scripts/users.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/Parking-Master/Gametime.js-4.0@latest/gametime.min.js"></script>
     <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <div class="speed"><span id="value">0</span><span style="font-size: 30px">MPH</span></div>
+    <div class="score score-red">0</div>
+    <div class="score score-blue">0</div>
     <div class="countdown-banner">
       <div class="countdown-text">0</div>
     </div>
     <script>
+      if (!localStorage["points"]) localStorage.setItem("points", 0);
+
       let team = "red";
       let vehicles = [];
       let allowedToUseControls = false;
       let speedText = document.querySelector(".speed #value");
+      let scoreRedText = document.querySelector(".score.score-red");
+      let scoreBlueText = document.querySelector(".score.score-blue");
       let gameStarted = false;
       let gameStartTime = null;
       let showFirstCountdownText = false;
@@ -111,12 +142,25 @@
       let parkingSpots = {};
       let trafficCone = null;
       let trafficCones = [];
-      gametime.set("player", {
-        position: [0, 0, 0, 0, 0, 0, 0, 0],
-        score: 0,
-        ready: false,
-        parked: false
-      });
+      if (users.loggedIn) {
+        gametime.set("username", users.data.username);
+        gametime.set("player", {
+          position: [0, 0, 0, 0, 0, 0, 0, 0],
+          score: 0,
+          ready: false,
+          parked: false,
+          profilePicture: users.data.profilePicture
+        });
+      } else {
+        gametime.set("username", "Guest");
+        gametime.set("player", {
+          position: [0, 0, 0, 0, 0, 0, 0, 0],
+          score: 0,
+          ready: false,
+          parked: false,
+          profilePicture: "https://cdn.jsdelivr.net/gh/Parking-Master/Parking-Master@latest/img/profile-picture.png"
+        });
+      }
       let lobby = new URLSearchParams(location.search).get("lobby");
       if (!lobby) alert("Lobby name is not valid!"), location.replace("/");
       gametime.set("channel", lobby);
@@ -414,6 +458,8 @@
         vehicles[0].setSteeringValue(steerAmount, 0);
         vehicles[0].setSteeringValue(steerAmount, 2);
       }
+      let previousRedScore = 0;
+      let previousBlueScore = 0;
       function updateInfo() {
         const velocity = new CANNON.Vec3().copy(vehicles[0].body.velocity);
         vehicles[0].speed = velocity.length();
@@ -437,6 +483,16 @@
             showSecondCountdownText = false;
             hideCountdown();
             allowedToUseControls = true;
+          }
+        }
+        if (gameStarted) {
+          let otherPlayer = Object.values(gametime.players).filter(x => x.uuid != gametime.player.uuid)[0];
+          if (team == "red") {
+            if (gametime.player.data.score != previousRedScore) scoreRedText.textContent = gametime.player.data.score, previousRedScore = gametime.player.data.score;
+            if (otherPlayer.data.score != previousBlueScore) scoreBlueText.textContent = otherPlayer.data.score, previousBlueScore = otherPlayer.data.score;
+          } else if (team == "blue") {
+            if (gametime.player.data.score != previousBlueScore) scoreBlueText.textContent = gametime.player.data.score, previousBlueScore = gametime.player.data.score;
+            if (otherPlayer.data.score != previousRedScore) scoreRedText.textContent = otherPlayer.data.score, previousRedScore = otherPlayer.data.score;
           }
         }
       }
@@ -489,66 +545,67 @@
         if (!allowedToUseControls) return;
         allowedToUseControls = false;
         for (key in keyStates) keyStates[key] = false;
+        let isFinalLevel = currentLevel == 3;
         if (reason == "outofbounds") {
           if (player == 1) {
             swal({
               title: "Round over",
-              text: "You lost this round by crossing the red line! Starting next round...",
-              button: false,
+              text: "You lost this round by crossing the red line!" + (isFinalLevel ? "" : " Starting next round..."),
+              button: isFinalLevel ? "Finish" : false,
               closeOnEsc: false,
               closeOnEnterKey: false,
               closeOnSpaceKey: false,
               closeOnClickOutside: false
-            });
-            setTimeout(startNextRound, 5000);
+            }).then(gameEnd);
+            setTimeout(() => startNextRound(), 5000);
           } else {
             swal({
               title: "Round over",
-              text: "You won this round because your opponent crossed the red line! Starting next round...",
-              button: false,
+              text: "You won this round because your opponent crossed the red line!" + (isFinalLevel ? "" : " Starting next round..."),
+              button: isFinalLevel ? "Finish" : false,
               closeOnEsc: false,
               closeOnEnterKey: false,
               closeOnSpaceKey: false,
               closeOnClickOutside: false
-            });
+            }).then(gameEnd);
             gametime.player.data.score++;
-            setTimeout(startNextRound, 5000);
+            setTimeout(() => startNextRound(), 5000);
           }
         } else if (reason == "parked") {
           swal({
             title: "Round over",
-            text: "You lost this round! Starting next round...",
-            button: false,
+            text: "You lost this round!" + (isFinalLevel ? "" : " Starting next round..."),
+            button: isFinalLevel ? "Finish" : false,
             closeOnEsc: false,
             closeOnEnterKey: false,
             closeOnSpaceKey: false,
             closeOnClickOutside: false
-          });
-          setTimeout(startNextRound, 5000);
+          }).then(gameEnd);
+          setTimeout(() => startNextRound(), 5000);
         } else if (reason == "crash") {
           if (player == 1) {
             swal({
               title: "Round over",
-              text: "You lost this round because you hit a traffic cone! Starting next round...",
-              button: false,
+              text: "You lost this round because you hit a traffic cone!" + (isFinalLevel ? "" : " Starting next round..."),
+              button: isFinalLevel ? "Finish" : false,
               closeOnEsc: false,
               closeOnEnterKey: false,
               closeOnSpaceKey: false,
               closeOnClickOutside: false
-            });
-            setTimeout(startNextRound, 5000);
+            }).then(gameEnd);
+            setTimeout(() => startNextRound(), 5000);
           } else if (player == 2) {
             swal({
               title: "Round over",
-              text: "You won this round because your opponent hit a traffic cone! Starting next round...",
-              button: false,
+              text: "You won this round because your opponent hit a traffic cone!" + (isFinalLevel ? "" : " Starting next round..."),
+              button: isFinalLevel ? "Finish" : false,
               closeOnEsc: false,
               closeOnEnterKey: false,
               closeOnSpaceKey: false,
               closeOnClickOutside: false
-            });
+            }).then(gameEnd);
+            setTimeout(() => startNextRound(), 5000);
             gametime.player.data.score++;
-            setTimeout(startNextRound, 5000);
           }
         }
       }
@@ -586,18 +643,46 @@
         }
         if (!getDistance()) return Notiflix.Notify.failure("You are not in the parking spot."), false;
         allowedToUseControls = false;
+        for (key in keyStates) keyStates[key] = false;
+        let isFinalLevel = currentLevel == 3;
+        let title = null;
+        let text = null;
+        let button = isFinalLevel ? "Finish" : false;
+        let points = 1;
+        if (parkingSpot.type.includes("defaultSpot")) {
+          title = "You parked!";
+          text = "You won this round.";
+        } else if (parkingSpot.type == "blueSpot") {
+          title = "+2 points!";
+          text = "You won this round. You also earned an extra point by parking in a Bluespot.";
+          points = 2;
+        } else if (parkingSpot.type == "specialSpot") {
+          title = "+10 points!";
+          text = "You won this round and earned 10 points!";
+          points = 10;
+        }
+        if (isFinalLevel) {
+          button = "Finish";
+        } else {
+          if (text) text += " Starting next round...";
+        }
         swal({
-          title: "You parked!",
-          text: "You won this round. Starting next round...",
-          button: false,
+          title: title,
+          text: text,
+          button: button,
           closeOnEsc: false,
           closeOnEnterKey: false,
           closeOnSpaceKey: false,
           closeOnClickOutside: false
-        });
+        }).then(gameEnd);
+        if (users.loggedIn) {
+          users.set("points", Math.max(parseInt(users.data.points) + points, 0));
+        } else {
+          localStorage.setItem("points", Math.max(parseInt(localStorage["points"]) + points, 0));
+        }
+        setTimeout(() => startNextRound(), 5000);
         gametime.player.data.parked = true;
         gametime.player.data.score++;
-        setTimeout(startNextRound, 5000);
       }
       function addTrafficCone(position) {
         let mesh = trafficCone.clone();
@@ -609,6 +694,38 @@
       }
       function removeAllTrafficCones() {
         trafficCones.forEach(x => (scene.remove(x.mesh), world.remove(x.body)));
+      }
+      function gameEnd() {
+        if (currentLevel == 3) {
+          swal({
+            title: "Game Over",
+            text: "And the winner is...",
+            button: false,
+            closeOnEsc: false,
+            closeOnEnterKey: false,
+            closeOnSpaceKey: false,
+            closeOnClickOutside: false
+          });
+          setTimeout(function() {
+            let otherPlayer = Object.values(gametime.players).filter(x => x.uuid != gametime.player.uuid)[0];
+            let won = false;
+            if (gametime.player.data.score > otherPlayer.data.score) won = true;
+            swal({
+              icon: won ? gametime.player.data.profilePicture : otherPlayer.data.profilePicture,
+              title: won ? gametime.player.username : otherPlayer.username,
+              text: won ? "Congratulations! You won and earned 10 extra points!" : "You lost this match... better luck next time.",
+              button: "Main Menu",
+              closeOnEsc: false,
+              closeOnEnterKey: false,
+              closeOnSpaceKey: false,
+              closeOnClickOutside: false
+            }).then(function() {
+              location.replace("/");
+            });
+            document.querySelector(".swal-icon img").style = "background-color: #fff; border-radius: 100%";
+            document.querySelector(".swal-title").style.fontSize = "30px";
+          }, 3000);
+        }
       }
       function loadLevel(level, initial = false) {
         function next() {
@@ -662,6 +779,7 @@
         });
       }
       function startNextRound(initial = false) {
+        if (currentLevel == 3) return;
         gametime.player.data.parked = false;
         vehicles[0].body.quaternion.setFromEuler(0, 0, 0);
         vehicles[1].body.quaternion.setFromEuler(0, 0, 0);
@@ -674,20 +792,18 @@
           vehicles[0].body.position.set(0, 1.5, 0);
           vehicles[1].body.position.set(-10, 1.5, 0);
         }
-        loadLevel(initial ? 1 : currentLevel + 1);
+        loadLevel(initial ? 1 : (currentLevel + 1), initial);
       }
       loadLevel(1, true);
 
       document.addEventListener("keydown", function(event) {
         if (!allowedToUseControls) return;
         keyStates[event.key] = true;
-        if (event.key == "Enter" && !event.repeat) {
-          park();
-        }
       });
       document.addEventListener("keyup", function(event) {
         if (!allowedToUseControls) return;
         keyStates[event.key] = false;
+        if (event.key == "Enter") park();
       });
 
       swal({
