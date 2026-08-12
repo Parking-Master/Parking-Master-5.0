@@ -13,7 +13,7 @@ function openSettings() {
   <h2>Options</h2>
   <a class="option" href="#" onclick="this.dataset.disabled = 'disabled', users.logout()" data-disabled>Log out</a>
   <a class="option" href="/account.html" data-disabled>Edit Profile</a>
-  <a class="option" href="#">Performance</a>
+  <a class="option" href="#" onclick="openPerformanceSettings()">Performance</a>
   <h2>More</h2>
   <a class="option" href="/users.html">Leaderboard</a>
   <a class="option" href="/clips.html" data-disabled>Your Game Clips</a>
@@ -24,6 +24,23 @@ function openSettings() {
     button: "Close"
   });
   if (users.loggedIn) document.querySelectorAll(".swal-content a.option").forEach(link => link.removeAttribute("data-disabled"));
+}
+function openPerformanceSettings() {
+  let content = document.createElement("div");
+  content.innerHTML = `
+  <p>Set Performance<p>
+  <input name="performance" type="range" min="1" max="100" step="1" value="75" oninput="localStorage.setItem('performance', this.value), this.nextElementSibling.textContent = this.value + '%'">
+  <label for="performance">75%</label>
+  <p style="color:#999;font-size:14px">The lower you set, the better performance you will have. The higher you set, the better graphics you will have.<p>
+  `;
+  swal({
+    content: content
+  });
+  if (localStorage["performance"]) {
+    let value = parseInt(localStorage["performance"]);
+    content.querySelector("input").value = value;
+    content.querySelector("label").textContent = value + "%";
+  }
 }
 function openLobbies() {
   document.querySelector(".lobbies").classList.toggle("opened");

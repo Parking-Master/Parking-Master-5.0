@@ -42,6 +42,7 @@
             settings.performance.backgroundCars = true;
             settings.performance.replay = true;
           }
+          localStorage.setItem("performance", settings.performance.slider);
         }
         if (settings.performance.reduceScreenSize) {
           document.querySelector("#game").dataset.reduceScreenSize = "1";
@@ -59,6 +60,7 @@
         onWindowResize();
         renderer.render(scene, camera);
       }
+      if (localStorage["performance"]) settings.performance.slider = parseInt(localStorage["performance"]);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       const scene = new THREE.Scene();

@@ -142,6 +142,7 @@
       let parkingSpots = {};
       let trafficCone = null;
       let trafficCones = [];
+      let vectors = [new THREE.Vector3(), new THREE.Vector3(), new CANNON.Vec3(), new CANNON.Vec3(0.08, 0.5, 0.08)];
       if (users.loggedIn) {
         gametime.set("username", users.data.username);
         gametime.set("player", {
@@ -164,7 +165,6 @@
       let lobby = new URLSearchParams(location.search).get("lobby");
       if (!lobby) alert("Lobby name is not valid!"), location.replace("/");
       gametime.set("channel", lobby);
-      gametime.serverURL="ws://192.168.70.58:7201";
       gametime.connect();
       let teamsInitialized = false;
       let playersInitialized = false;
@@ -461,7 +461,7 @@
       let previousRedScore = 0;
       let previousBlueScore = 0;
       function updateInfo() {
-        const velocity = new CANNON.Vec3().copy(vehicles[0].body.velocity);
+        const velocity = vectors[2].copy(vehicles[0].body.velocity);
         vehicles[0].speed = velocity.length();
         vehicles[0].speedMPH = vehicles[0].speed * 2.236936;
         if (frameCount % 3 == 0) speedText.textContent = Math.round(vehicles[0].speedMPH);
@@ -615,7 +615,7 @@
         let closestSpotDistance = null;
         for (type in parkingSpots) {
           const arrayCorners = Object.values(parkingSpots[type].corners);
-          const distance = arrayCorners.reduce((a, b) => a.clone().add(b)).divide(new THREE.Vector3(arrayCorners.length, arrayCorners.length, arrayCorners.length)).distanceTo(vehicles[0].body.position);
+          const distance = arrayCorners.reduce((a, b) => a.clone().add(b)).divide(vectors[0].set(arrayCorners.length, arrayCorners.length, arrayCorners.length)).distanceTo(vehicles[0].body.position);
           if (!parkingSpot || distance < closestSpotDistance) {
             parkingSpot = parkingSpots[type];
             closestSpotDistance = distance;
@@ -625,7 +625,7 @@
         function getDistance(spotCorners = parkingSpot.corners) {
           for (corner in vehicles[0].corners) {
             const axis = vehicles[0].corners[corner].clone().applyQuaternion(vehicles[0].mesh.quaternion);
-            const cornerPosition = new THREE.Vector3().copy(vehicles[0].mesh.position).add(axis);
+            const cornerPosition = vectors[1].copy(vehicles[0].mesh.position).add(axis);
             const cornerDistance = cornerPosition.distanceTo(spotCorners[corner]);
             distances.push(cornerDistance);
           }
@@ -686,7 +686,7 @@
       }
       function addTrafficCone(position) {
         let mesh = trafficCone.clone();
-        let body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(new CANNON.Vec3(0.08, 0.5, 0.08)) });
+        let body = new CANNON.Body({ mass: 2, shape: new CANNON.Box(vectors[3]) });
         body.position.set(position.x, position.y, position.z);
         world.add(body);
         scene.add(mesh);
@@ -706,14 +706,27 @@
             closeOnSpaceKey: false,
             closeOnClickOutside: false
           });
+          let otherPlayer = Object.values(gametime.players).filter(x => x.uuid != gametime.player.uuid)[0];
+          let icon, title, text;
+          if (gametime.player.data.score > otherPlayer.data.score) {
+            icon = gametime.player.data.profilePicture;
+            title = gametime.player.username;
+            text = "Congratulations! You won and earned 10 extra points!";
+            if (users.loggedIn) {
+              users.set("points", parseInt(users.data.points) + 10);
+            } else {
+              localStorage.setItem("points", parseInt(localStorage["points"]) + 10);
+            }
+          } else {
+            icon = otherPlayer.data.profilePicture;
+            title = otherPlayer.username;
+            text = "You lost this match... better luck next time.";
+          }
           setTimeout(function() {
-            let otherPlayer = Object.values(gametime.players).filter(x => x.uuid != gametime.player.uuid)[0];
-            let won = false;
-            if (gametime.player.data.score > otherPlayer.data.score) won = true;
             swal({
-              icon: won ? gametime.player.data.profilePicture : otherPlayer.data.profilePicture,
-              title: won ? gametime.player.username : otherPlayer.username,
-              text: won ? "Congratulations! You won and earned 10 extra points!" : "You lost this match... better luck next time.",
+              icon: icon,
+              title: title,
+              text: text,
               button: "Main Menu",
               closeOnEsc: false,
               closeOnEnterKey: false,
