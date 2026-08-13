@@ -13,6 +13,7 @@ function openSettings() {
   <h2>Options</h2>
   <a class="option" href="#" onclick="this.dataset.disabled = 'disabled', users.logout()" data-disabled>Log out</a>
   <a class="option" href="/account.html" data-disabled>Edit Profile</a>
+  <a class="option" href="#" onclick="viewProfile()" data-disabled>View Your Profile</a>
   <a class="option" href="#" onclick="openPerformanceSettings()">Performance</a>
   <h2>More</h2>
   <a class="option" href="/users/">Leaderboard</a>
@@ -24,6 +25,9 @@ function openSettings() {
     button: "Close"
   });
   if (users.loggedIn) document.querySelectorAll(".swal-content a.option").forEach(link => link.removeAttribute("data-disabled"));
+}
+function viewProfile() {
+  location.href = "/users/#" + users.data.username;
 }
 function openPerformanceSettings() {
   let content = document.createElement("div");
