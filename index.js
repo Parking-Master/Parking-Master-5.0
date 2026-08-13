@@ -15,7 +15,7 @@ function openSettings() {
   <a class="option" href="/account.html" data-disabled>Edit Profile</a>
   <a class="option" href="#" onclick="openPerformanceSettings()">Performance</a>
   <h2>More</h2>
-  <a class="option" href="/users.html">Leaderboard</a>
+  <a class="option" href="/users/">Leaderboard</a>
   <a class="option" href="/clips.html" data-disabled>Your Game Clips</a>
   <a class="option" href="https://github.com/Parking-Master/Parking-Master-5.0/issues">Report a Bug</a>
   `;
@@ -34,8 +34,9 @@ function openPerformanceSettings() {
   <p style="color:#999;font-size:14px">The lower you set, the better performance you will have. The higher you set, the better graphics you will have.<p>
   `;
   swal({
-    content: content
-  });
+    content: content,
+    button: "Back"
+  }).then(() => openSettings());
   if (localStorage["performance"]) {
     let value = parseInt(localStorage["performance"]);
     content.querySelector("input").value = value;
@@ -93,7 +94,7 @@ if (users.loggedIn) {
   };
   document.querySelector(".nav-button-signup").remove();
   let vehicleNames = {
-    "Honda_Civic": "2019 Honda Civic Sport Touring",
+    "Honda_Civic": "2018 Honda Civic Sport Touring",
     "Toyota_RAV4": "2023 Toyota RAV4",
     "Mini_Cooper": "2014 Mini Cooper S",
     "Ford_Victoria": "2010 Ford Crown Victoria",

@@ -607,7 +607,7 @@
             "blinker_r": false
           },
           vehicleNames: {
-            "Honda_Civic": "2019 Honda Civic Sport Touring",
+            "Honda_Civic": "2018 Honda Civic Sport Touring",
             "Toyota_RAV4": "2023 Toyota RAV4",
             "Mini_Cooper": "2014 Mini Cooper S",
             "Ford_Victoria": "2010 Ford Crown Victoria",
