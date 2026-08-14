@@ -137,6 +137,7 @@
   </head>
   <body>
     <script src="/scripts/users.js"></script>
+    <script src="https://parkingmaster.tk/notiflix/notiflix-3.2.8.min.js"></script>
     <div class="container light-style flex-grow-1 container-p-y">
       <h4 class="font-weight-bold py-3 mb-4">Account settings</h4>
       <div class="card overflow-hidden">
@@ -144,7 +145,7 @@
           <div class="col-md-3 pt-0">
             <div class="list-group list-group-flush account-settings-links">
               <a class="list-group-item list-group-item-action active" data-toggle="list" href="#account-profile">Profile</a>
-              <a class="list-group-item list-group-item-action" data-toggle="list" href="#account-change-password">Change password</a>
+              <a class="list-group-item list-group-item-action" href="login.html?rp=1">Change password</a>
               <a class="list-group-item list-group-item-action logout-button" data-toggle="list" href="#" onclick="logout()">Log out</a>
             </div>
           </div>
@@ -201,6 +202,11 @@
       </div>
     </div>
     <script>
+      let params = new URLSearchParams(location.search);
+      if (params.get("success")) {
+        Notiflix.Notify.success("You have successfully changed your password!");
+        window.history.replaceState({}, document.title, "/account.html");
+      }
       document.querySelector(".save-profile-button").disabled = "disabled";
       let settings = {
         profilePicture: null,
